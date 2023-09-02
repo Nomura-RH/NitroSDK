@@ -2,7 +2,7 @@ libos_srcs = files(
     'os_irqHandler.c',
     'os_irqTable.c',
     'os_interrupt.c',
-    'os_spinlock.c',
+    'os_spinLock.c',
     'os_printf.c',
     'os_thread.c',
     'os_context.c',
