@@ -1,0 +1,16 @@
+*.c text eol=lf
+*.h text eol=lf
+*.py text eol=lf
+
+*.csv text eol=lf
+*.template text eol=lf 
+
+meson.build text eol=lf
+meson.options text eol=lf
+
+*.a binary
+*.sbin binary
+
+*.c linguist-language=C
+*.h linguist-language=C
+*.py linguist-language=Python

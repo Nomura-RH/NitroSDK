@@ -1,0 +1,20 @@
+libmi_srcs = files(
+    'mi_wram.c',
+    'mi_dma.c',
+    'mi_dma_hblank.c',
+    'mi_dma_vblank.c',
+    'mi_dma_mainmem.c',
+    'mi_dma_gxcommand.c',
+    'mi_memory.c',
+    'mi_swap.c',
+    'mi_uncompress.c',
+    'mi_byteAccess.c',
+    'mi_stream.c',
+    'mi_card.c',
+    'mi_dma_card.c',
+    'mi_uncomp_stream.c',
+    'mi_compress.c',
+    'mi_exMemory.c',
+    'mi_init.c',
+    'mi_cache.c'
+)

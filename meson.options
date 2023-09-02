@@ -1,0 +1,2 @@
+option('mwrap_ver', type: 'string', value: 'default', description: 'Version of Metrowerks toolchain to use')
+option('sp1p3_conditionals', type: 'boolean', value: false)
