@@ -7,6 +7,8 @@ project('NitroSDK', 'c',
     version: '4.2.30001'
 )
 
+fs = import('fs')
+
 buildtype = get_option('buildtype')
 cc = meson.get_compiler('c')
 
@@ -96,9 +98,8 @@ subdir('specfiles')
 
 nitrosdk_dep = declare_dependency(
     compile_args: nitrosdk_args,
-    dependencies: nitrosdk_prebuilt,
     include_directories: nitrosdk_includes,
-    link_with: nitrosdk_libs,
+    link_with: nitrosdk_libs + nitrosdk_prebuilt,
     objects: crt0_obj,
     sources: fx_const_h
 )
