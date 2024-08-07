@@ -76,6 +76,7 @@ nitro_pch = meson.current_source_dir() / 'include/pch/nitro_pch.h'
 ###                    INCLUDE PATHS                     ###
 ############################################################
 nitrosdk_includes = include_directories('gen', 'include')
+include_nitro = include_directories('include' / 'nitro')
 
 ############################################################
 ###                      LIBRARIES                       ###
@@ -91,6 +92,11 @@ subdir('components')
 ###                      SPECFILES                       ###
 ############################################################
 subdir('specfiles')
+
+############################################################
+###                        TOOLS                         ###
+############################################################
+subdir('tools')
 
 ############################################################
 ###                    FOR CONSUMERS                     ###
