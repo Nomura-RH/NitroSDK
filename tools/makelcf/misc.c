@@ -1,8 +1,8 @@
 #include <stdio.h>
 
-#ifndef __clang__
+#ifndef __MACH__
     #include <malloc.h> // calloc()
-#endif //__clang__
+#endif //__MACH__
 
 #include <stdlib.h>  // free(), exit()
 #include <string.h>  // strlen(), strcpy()
