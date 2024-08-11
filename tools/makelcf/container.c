@@ -2,9 +2,9 @@
 #include <stdlib.h> // exit()
 #include <string.h> // strcpy(), strcat()
 
-#ifndef __clang__
+#ifndef __MACH__
     #include <malloc.h>
-#endif //__clang__
+#endif //__MACH__
 
 #include "misc.h"
 #include "makelcf.h"
