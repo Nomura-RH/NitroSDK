@@ -1,0 +1,426 @@
+#define __WLCMDIF_C_
+#define __INSYSROM__
+
+#include "WlSys.h"
+#include "DbgChar.h"
+
+#include "WlLib.h"
+#include "WlCmdIf.h"
+
+#include "MLME.h"
+#include "MA.h"
+#include "ParamCmd.h"
+#include "DevCmd.h"
+
+static const WLLIB_CMD_TBL WlibCmdTbl_MLME[] = {
+#ifndef SDK_SMALL_BUILD_WL
+    { MLME_RESET_REQ_MINSIZE, MLME_RESET_CFM_MINSIZE, MLME_ResetReqCmd },
+    { MLME_PWRMGT_REQ_MINSIZE, MLME_PWRMGT_CFM_MINSIZE, MLME_PwrMgtReqCmd },
+    { MLME_SCAN_REQ_MINSIZE, MLME_SCAN_CFM_MINSIZE, MLME_ScanReqCmd },
+    { MLME_JOIN_REQ_MINSIZE, MLME_JOIN_CFM_MINSIZE, MLME_JoinReqCmd },
+    { MLME_AUTH_REQ_MINSIZE, MLME_AUTH_CFM_MINSIZE, MLME_AuthReqCmd },
+    { MLME_DEAUTH_REQ_MINSIZE, MLME_DEAUTH_CFM_MINSIZE, MLME_DeAuthReqCmd },
+    { MLME_ASS_REQ_MINSIZE, MLME_ASS_CFM_MINSIZE, MLME_AssReqCmd },
+    { MLME_REASS_REQ_MINSIZE, MLME_REASS_CFM_MINSIZE, MLME_ReAssReqCmd },
+    { MLME_DISASS_REQ_MINSIZE, MLME_DISASS_CFM_MINSIZE, MLME_DisAssReqCmd },
+    { MLME_START_REQ_MINSIZE, MLME_START_CFM_MINSIZE, MLME_StartReqCmd },
+    { MLME_MEASCHAN_REQ_MINSIZE, MLME_MEASCHAN_CFM_MINSIZE, MLME_MeasChanReqCmd },
+#else
+    { MLME_RESET_REQ_MINSIZE, MLME_RESET_CFM_MINSIZE, MLME_ResetReqCmd },
+    { MLME_PWRMGT_REQ_MINSIZE, MLME_PWRMGT_CFM_MINSIZE, MLME_PwrMgtReqCmd },
+    { MLME_SCAN_REQ_MINSIZE, MLME_SCAN_CFM_MINSIZE, MLME_ScanReqCmd },
+    { MLME_JOIN_REQ_MINSIZE, MLME_JOIN_CFM_MINSIZE, MLME_JoinReqCmd },
+    { MLME_AUTH_REQ_MINSIZE, MLME_AUTH_CFM_MINSIZE, MLME_AuthReqCmd },
+    { MLME_DEAUTH_REQ_MINSIZE, MLME_DEAUTH_CFM_MINSIZE, MLME_DeAuthReqCmd },
+    { MLME_ASS_REQ_MINSIZE, MLME_ASS_CFM_MINSIZE, MLME_AssReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { MLME_START_REQ_MINSIZE, MLME_START_CFM_MINSIZE, MLME_StartReqCmd },
+    { MLME_MEASCHAN_REQ_MINSIZE, MLME_MEASCHAN_CFM_MINSIZE, MLME_MeasChanReqCmd },
+#endif
+};
+
+static const WLLIB_CMD_TBL WlibCmdTbl_MA[] = {
+    { MA_DATA_REQ_MINSIZE, MA_DATA_CFM_MINSIZE, MA_DataReqCmd },
+    { MA_KEYDATA_REQ_MINSIZE, MA_KEYDATA_CFM_MINSIZE, MA_KeyDataReqCmd },
+    { MA_MP_REQ_MINSIZE, MA_MP_CFM_MINSIZE, MA_MpReqCmd },
+    { MA_TESTDATA_REQ_MINSIZE, MA_TESTDATA_CFM_MINSIZE, MA_TestDataReqCmd },
+    { MA_CLRDATA_REQ_MINSIZE, MA_CLRDATA_CFM_MINSIZE, MA_ClrDataReqCmd },
+};
+
+static const WLLIB_CMD_TBL WlibCmdTbl_PARAMSET[] = {
+#ifndef SDK_SMALL_BUILD_WL
+    { PARAMSET_ALL_REQ_MINSIZE, PARAMSET_ALL_CFM_MINSIZE, PARAMSET_AllReqCmd },
+    { PARAMSET_MACADRS_REQ_MINSIZE, PARAMSET_MACADRS_CFM_MINSIZE, PARAMSET_MacAdrsReqCmd },
+    { PARAMSET_RETRY_REQ_MINSIZE, PARAMSET_RETRY_CFM_MINSIZE, PARAMSET_RetryReqCmd },
+    { PARAMSET_ENCH_REQ_MINSIZE, PARAMSET_ENCH_CFM_MINSIZE, PARAMSET_EnableChannelReqCmd },
+    { PARAMSET_MODE_REQ_MINSIZE, PARAMSET_MODE_CFM_MINSIZE, PARAMSET_ModeReqCmd },
+    { PARAMSET_RATE_REQ_MINSIZE, PARAMSET_RATE_CFM_MINSIZE, PARAMSET_RateReqCmd },
+    { PARAMSET_WEPMODE_REQ_MINSIZE, PARAMSET_WEPMODE_CFM_MINSIZE, PARAMSET_WepModeReqCmd },
+    { PARAMSET_WEPKEYID_REQ_MINSIZE, PARAMSET_WEPKEYID_CFM_MINSIZE, PARAMSET_WepKeyIdReqCmd },
+    { PARAMSET_WEPKEY_REQ_MINSIZE, PARAMSET_WEPKEY_CFM_MINSIZE, PARAMSET_WepKeyReqCmd },
+    { PARAMSET_BCN_TYPE_REQ_MINSIZE, PARAMSET_BCN_TYPE_CFM_MINSIZE, PARAMSET_BeaconTypeReqCmd },
+    { PARAMSET_RES_BC_SSID_REQ_MINSIZE, PARAMSET_RES_BC_SSID_CFM_MINSIZE, PARAMSET_ResBcSsidReqCmd },
+    { PARAMSET_BCN_LOST_REQ_MINSIZE, PARAMSET_BCN_LOST_CFM_MINSIZE, PARAMSET_BeaconLostThReqCmd },
+    { PARAMSET_ACT_ZONE_REQ_MINSIZE, PARAMSET_ACT_ZONE_CFM_MINSIZE, PARAMSET_ActiveZoneReqCmd },
+    { PARAMSET_SSID_MASK_REQ_MINSIZE, PARAMSET_SSID_MASK_CFM_MINSIZE, PARAMSET_SSIDMaskReqCmd },
+    { PARAMSET_PREAMBLE_TYPE_REQ_MINSIZE, PARAMSET_PREAMBLE_TYPE_CFM_MINSIZE, PARAMSET_PreambleTypeReqCmd },
+    { PARAMSET_AUTHALGO_REQ_MINSIZE, PARAMSET_AUTHALGO_CFM_MINSIZE, PARAMSET_AuthAlgoReqCmd },
+    { PARAMSET_CCA_EDTH_REQ_MINSIZE, PARAMSET_CCA_EDTH_CFM_MINSIZE, PARAMSET_CCAModeEDThReqCmd },
+    { PARAMSET_LIFE_TIME_REQ_MINSIZE, PARAMSET_LIFE_TIME_CFM_MINSIZE, PARAMSET_LifeTimeReqCmd },
+    { PARAMSET_MAX_CONN_REQ_MINSIZE, PARAMSET_MAX_CONN_CFM_MINSIZE, PARAMSET_MaxConnReqCmd },
+    { PARAMSET_MAIN_ANTENNA_REQ_MINSIZE, PARAMSET_MAIN_ANTENNA_CFM_MINSIZE, PARAMSET_MainAntennaReqCmd },
+    { PARAMSET_DIVERSITY_REQ_MINSIZE, PARAMSET_DIVERSITY_CFM_MINSIZE, PARAMSET_DiversityReqCmd },
+    { PARAMSET_BCNTXRXIND_REQ_MINSIZE, PARAMSET_BCNTXRXIND_CFM_MINSIZE, PARAMSET_BcnSendRecvIndReqCmd },
+    { PARAMSET_NULLKEYMODE_REQ_MINSIZE, PARAMSET_NULLKEYMODE_CFM_MINSIZE, PARAMSET_NullKeyModeReqCmd },
+#else
+    { PARAMSET_ALL_REQ_MINSIZE, PARAMSET_ALL_CFM_MINSIZE, PARAMSET_AllReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { PARAMSET_MODE_REQ_MINSIZE, PARAMSET_MODE_CFM_MINSIZE, PARAMSET_ModeReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { PARAMSET_LIFE_TIME_REQ_MINSIZE, PARAMSET_LIFE_TIME_CFM_MINSIZE, PARAMSET_LifeTimeReqCmd },
+    { PARAMSET_MAX_CONN_REQ_MINSIZE, PARAMSET_MAX_CONN_CFM_MINSIZE, PARAMSET_MaxConnReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { PARAMSET_BCNTXRXIND_REQ_MINSIZE, PARAMSET_BCNTXRXIND_CFM_MINSIZE, PARAMSET_BcnSendRecvIndReqCmd },
+    { PARAMSET_NULLKEYMODE_REQ_MINSIZE, PARAMSET_NULLKEYMODE_CFM_MINSIZE, PARAMSET_NullKeyModeReqCmd },
+#endif
+};
+
+static const WLLIB_CMD_TBL WlibCmdTbl_PARAMSET2[] = {
+#ifndef SDK_SMALL_BUILD_WL
+    { PARAMSET_BSSID_REQ_MINSIZE, PARAMSET_BSSID_CFM_MINSIZE, PARAMSET_BSSIDReqCmd },
+    { PARAMSET_SSID_REQ_MINSIZE, PARAMSET_SSID_CFM_MINSIZE, PARAMSET_SSIDReqCmd },
+    { PARAMSET_BCN_PERIOD_REQ_MINSIZE, PARAMSET_BCN_PERIOD_CFM_MINSIZE, PARAMSET_BeaconPeriodReqCmd },
+    { PARAMSET_DTIM_PERIOD_REQ_MINSIZE, PARAMSET_DTIM_PERIOD_CFM_MINSIZE, PARAMSET_DTIMPeriodReqCmd },
+    { PARAMSET_LSN_INT_REQ_MINSIZE, PARAMSET_LSN_INT_CFM_MINSIZE, PARAMSET_ListenIntervalReqCmd },
+    { PARAMSET_GAME_INFO_REQ_MINSIZE, PARAMSET_GAME_INFO_CFM_MINSIZE, PARAMSET_GameInfoReqCmd },
+#else
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { PARAMSET_GAME_INFO_REQ_MINSIZE, PARAMSET_GAME_INFO_CFM_MINSIZE, PARAMSET_GameInfoReqCmd },
+#endif
+};
+
+static const WLLIB_CMD_TBL WlibCmdTbl_PARAMGET[] = {
+#ifndef SDK_SMALL_BUILD_WL
+    { PARAMGET_ALL_REQ_MINSIZE, PARAMGET_ALL_CFM_MINSIZE, PARAMGET_AllReqCmd },
+    { PARAMGET_MACADRS_REQ_MINSIZE, PARAMGET_MACADRS_CFM_MINSIZE, PARAMGET_MacAdrsReqCmd },
+    { PARAMGET_RETRY_REQ_MINSIZE, PARAMGET_RETRY_CFM_MINSIZE, PARAMGET_RetryReqCmd },
+    { PARAMGET_ENCH_REQ_MINSIZE, PARAMGET_ENCH_CFM_MINSIZE, PARAMGET_EnableChannelReqCmd },
+    { PARAMGET_MODE_REQ_MINSIZE, PARAMGET_MODE_CFM_MINSIZE, PARAMGET_ModeReqCmd },
+    { PARAMGET_RATE_REQ_MINSIZE, PARAMGET_RATE_CFM_MINSIZE, PARAMGET_RateReqCmd },
+    { PARAMGET_WEPMODE_REQ_MINSIZE, PARAMGET_WEPMODE_CFM_MINSIZE, PARAMGET_WepModeReqCmd },
+    { PARAMGET_WEPKEYID_REQ_MINSIZE, PARAMGET_WEPKEYID_CFM_MINSIZE, PARAMGET_WepKeyIdReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { PARAMGET_BCN_TYPE_REQ_MINSIZE, PARAMGET_BCN_TYPE_CFM_MINSIZE, PARAMGET_BeaconTypeReqCmd },
+    { PARAMGET_RES_BC_SSID_REQ_MINSIZE, PARAMGET_RES_BC_SSID_CFM_MINSIZE, PARAMGET_ResBcSsidReqCmd },
+    { PARAMGET_BCN_LOST_REQ_MINSIZE, PARAMGET_BCN_LOST_CFM_MINSIZE, PARAMGET_BeaconLostThReqCmd },
+    { PARAMGET_ACT_ZONE_REQ_MINSIZE, PARAMGET_ACT_ZONE_CFM_MINSIZE, PARAMGET_ActiveZoneReqCmd },
+    { PARAMGET_SSID_MASK_REQ_MINSIZE, PARAMGET_SSID_MASK_CFM_MINSIZE, PARAMGET_SSIDMaskReqCmd },
+    { PARAMGET_PREAMBLE_TYPE_REQ_MINSIZE, PARAMGET_PREAMBLE_TYPE_CFM_MINSIZE, PARAMGET_PreambleTypeReqCmd },
+    { PARAMGET_AUTHALGO_REQ_MINSIZE, PARAMGET_AUTHALGO_CFM_MINSIZE, PARAMGET_AuthAlgoReqCmd },
+    { PARAMGET_CCA_EDTH_REQ_MINSIZE, PARAMGET_CCA_EDTH_CFM_MINSIZE, PARAMGET_CCAModeEDThReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { PARAMGET_MAX_CONN_REQ_MINSIZE, PARAMGET_MAX_CONN_CFM_MINSIZE, PARAMGET_MaxConnReqCmd },
+    { PARAMGET_MAIN_ANTENNA_REQ_MINSIZE, PARAMGET_MAIN_ANTENNA_CFM_MINSIZE, PARAMGET_MainAntennaReqCmd },
+    { PARAMGET_DIVERSITY_REQ_MINSIZE, PARAMGET_DIVERSITY_CFM_MINSIZE, PARAMGET_DiversityReqCmd },
+    { PARAMGET_BCNTXRXIND_REQ_MINSIZE, PARAMGET_BCNTXRXIND_CFM_MINSIZE, PARAMGET_BcnSendRecvIndReqCmd },
+    { PARAMGET_NULLKEYMODE_REQ_MINSIZE, PARAMGET_NULLKEYMODE_CFM_MINSIZE, PARAMGET_NullKeyModeReqCmd },
+#else
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { PARAMGET_MACADRS_REQ_MINSIZE, PARAMGET_MACADRS_CFM_MINSIZE, PARAMGET_MacAdrsReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { PARAMGET_ENCH_REQ_MINSIZE, PARAMGET_ENCH_CFM_MINSIZE, PARAMGET_EnableChannelReqCmd },
+    { PARAMGET_MODE_REQ_MINSIZE, PARAMGET_MODE_CFM_MINSIZE, PARAMGET_ModeReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { PARAMGET_WEPMODE_REQ_MINSIZE, PARAMGET_WEPMODE_CFM_MINSIZE, PARAMGET_WepModeReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+#endif
+};
+
+static const WLLIB_CMD_TBL WlibCmdTbl_PARAMGET2[] = {
+#ifndef SDK_SMALL_BUILD_WL
+    { PARAMGET_BSSID_REQ_MINSIZE, PARAMGET_BSSID_CFM_MINSIZE, PARAMGET_BSSIDReqCmd },
+    { PARAMGET_SSID_REQ_MINSIZE, PARAMGET_SSID_CFM_MINSIZE, PARAMGET_SSIDReqCmd },
+    { PARAMGET_BCN_PERIOD_REQ_MINSIZE, PARAMGET_BCN_PERIOD_CFM_MINSIZE, PARAMGET_BeaconPeriodReqCmd },
+    { PARAMGET_DTIM_PERIOD_REQ_MINSIZE, PARAMGET_DTIM_PERIOD_CFM_MINSIZE, PARAMGET_DTIMPeriodReqCmd },
+    { PARAMGET_LSN_INT_REQ_MINSIZE, PARAMGET_LSN_INT_CFM_MINSIZE, PARAMGET_ListenIntervalReqCmd },
+    { PARAMGET_GAME_INFO_REQ_MINSIZE, PARAMGET_GAME_INFO_CFM_MINSIZE, PARAMGET_GameInfoReqCmd },
+#else
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+#endif
+};
+
+static const WLLIB_CMD_TBL WlibCmdTbl_DEV[] = {
+    { CMD_RESERVED_REQ_MINSIZE, CMD_RESERVED_CFM_MINSIZE, CMD_ReservedReqCmd },
+    { DEV_SHUTDOWN_REQ_MINSIZE, DEV_SHUTDOWN_CFM_MINSIZE, DEV_ShutdownReqCmd },
+    { DEV_IDLE_REQ_MINSIZE, DEV_IDLE_CFM_MINSIZE, DEV_IdleReqCmd },
+    { DEV_CLASS1_REQ_MINSIZE, DEV_CLASS1_CFM_MINSIZE, DEV_Class1ReqCmd },
+    { DEV_REBOOT_REQ_MINSIZE, DEV_REBOOT_CFM_MINSIZE, DEV_RebootReqCmd },
+    { DEV_CLR_WLINFO_REQ_MINSIZE, DEV_CLR_WLINFO_CFM_MINSIZE, DEV_ClearWlInfoReqCmd },
+    { DEV_GET_VERINFO_REQ_MINSIZE, DEV_GET_VERINFO_CFM_MINSIZE, DEV_GetVerInfoReqCmd },
+    { DEV_GET_WLINFO_REQ_MINSIZE, DEV_GET_WLINFO_CFM_MINSIZE, DEV_GetWlInfoReqCmd },
+    { DEV_GET_STATE_REQ_MINSIZE, DEV_GET_STATE_CFM_MINSIZE, DEV_GetStateReqCmd },
+    { DEV_TEST_SIGNAL_REQ_MINSIZE, DEV_TEST_SIGNAL_CFM_MINSIZE, DEV_TestSignalReqCmd },
+    { DEV_TEST_RX_REQ_MINSIZE, DEV_TEST_RX_CFM_MINSIZE, DEV_TestRxReqCmd },
+};
+
+void RequestCmdTask(void)
+{
+    LPCMDIF_MAN pCmdIf = &wlMan->CmdIf;
+    LPWORK_PARAM pWork = &wlMan->Work;
+    WlCmdReq *pReq;
+    WlCmdCfm *pCfm;
+    LPWLLIB_CMD_TBL pCmdTbl;
+    u16 vCode, vCodeMax, err = 0;
+    u16 currBusy = 0;
+
+    if (pCmdIf->Busy) {
+        DbgPrint("CmdIf is busy(%x)\r\n", pCmdIf->Busy);
+        return;
+    }
+
+    pCmdIf->pCmd = (u8 *)GetHeapBufHeadAdrs(&wlMan->HeapMan.RequestCmd);
+    if ((u32)pCmdIf->pCmd == HEAPBUF_HEAD_NONE) {
+        return;
+    }
+
+    pReq = (WlCmdReq *)pCmdIf->pCmd;
+    pCfm = (WlCmdCfm *)WL_CalcConfirmPointer(pReq);
+
+    DbgWlPrint(B_WL_DBG_CMD_CODE, "[%04x.req]", pReq->header.code);
+
+#ifndef SDK_NOCHK_ERR_WL
+    if (wlMan->Config.DiagResult) {
+        currBusy = 0;
+        pCfm->header.length = 1;
+        pCfm->resultCode = WL_CMDRES_REFUSE;
+        goto end_of_command;
+    }
+#endif
+
+    if (pReq->header.code != pCfm->header.code) {
+        pCfm->resultCode = WL_CMDRES_CONFIRM_CODE_ERR;
+        goto end_of_command;
+    }
+
+    switch (pReq->header.code & WL_CMDGCODE_MASK) {
+    case WL_CMDGCODE_MLME:
+        DbgWlPutchar(B_WL_DBG_CMDIF, (WL_DBG_CMDIF_MLME));
+
+        currBusy = CMDBUSY_MLME;
+        pCmdTbl = (LPWLLIB_CMD_TBL)WlibCmdTbl_MLME;
+        vCode = pReq->header.code & WL_CMDSCODE_MASK;
+        vCodeMax = MLME_REQ_NUM;
+
+        if (pCmdIf->Busy & CMDBUSY_MLME) {
+            err = WL_CMDRES_REQUEST_BUSY;
+        }
+
+        else if (wlMan->Work.STA < STA_CLASS1) {
+            err = WL_CMDRES_STATE_WRONG;
+        }
+
+        break;
+
+    case WL_CMDGCODE_MA:
+        DbgWlPutchar(B_WL_DBG_CMDIF, (WL_DBG_CMDIF_MA));
+
+        currBusy = CMDBUSY_MA;
+        pCmdTbl = (LPWLLIB_CMD_TBL)WlibCmdTbl_MA;
+        vCode = pReq->header.code & WL_CMDSCODE_MASK;
+        vCodeMax = MA_REQ_NUM;
+
+        if (wlMan->Work.STA != STA_CLASS3) {
+            err = WL_CMDRES_STATE_WRONG;
+        }
+        break;
+
+    case WL_CMDGCODE_PARAM:
+        vCode = pReq->header.code & WL_CMDSCODE_MASK;
+        if (vCode < (WL_CMDCODE_PARAM_SET_BSSID & WL_CMDSCODE_MASK)) {
+            DbgWlPutchar(B_WL_DBG_CMDIF, (WL_DBG_CMDIF_PARAMSET));
+
+            if (wlMan->Work.STA < STA_IDLE) {
+                err = WL_CMDRES_STATE_WRONG;
+            }
+
+            currBusy = CMDBUSY_PARAMSET;
+            pCmdTbl = (LPWLLIB_CMD_TBL)WlibCmdTbl_PARAMSET;
+            vCodeMax = PARAMSET_REQ_NUM;
+        } else if (vCode < (WL_CMDCODE_PARAM_GET_ALL & WL_CMDSCODE_MASK)) {
+            DbgWlPutchar(B_WL_DBG_CMDIF, (WL_DBG_CMDIF_PARAMSET2));
+
+            if (wlMan->Work.STA != STA_CLASS3) {
+                err = WL_CMDRES_STATE_WRONG;
+            }
+
+            currBusy = CMDBUSY_PARAMSET2;
+            pCmdTbl = (LPWLLIB_CMD_TBL)WlibCmdTbl_PARAMSET2;
+            vCode -= PARAMSET2_STR_OFST;
+            vCodeMax = PARAMSET2_REQ_NUM;
+        } else if (vCode < (WL_CMDCODE_PARAM_GET_BSSID & WL_CMDSCODE_MASK)) {
+            DbgWlPutchar(B_WL_DBG_CMDIF, (WL_DBG_CMDIF_PARAMGET));
+
+            if (wlMan->Work.STA < STA_IDLE) {
+                err = WL_CMDRES_STATE_WRONG;
+            }
+
+            currBusy = CMDBUSY_PARAMGET;
+            pCmdTbl = (LPWLLIB_CMD_TBL)WlibCmdTbl_PARAMGET;
+            vCode -= PARAMGET_STR_OFST;
+            vCodeMax = PARAMGET_REQ_NUM;
+        } else {
+            DbgWlPutchar(B_WL_DBG_CMDIF, (WL_DBG_CMDIF_PARAMGET2));
+
+#ifndef SDK_SMALL_BUILD_WL
+            if (wlMan->Work.STA < STA_IDLE) {
+                err = WL_CMDRES_STATE_WRONG;
+            }
+
+            currBusy = CMDBUSY_PARAMGET2;
+            pCmdTbl = (LPWLLIB_CMD_TBL)WlibCmdTbl_PARAMGET2;
+            vCode -= PARAMGET2_STR_OFST;
+            vCodeMax = PARAMGET2_REQ_NUM;
+#else
+            vCode = 1;
+            vCodeMax = 0;
+#endif
+        }
+        break;
+
+    case WL_CMDGCODE_DEV:
+        DbgWlPutchar(B_WL_DBG_CMDIF, (WL_DBG_CMDIF_DEVCMD));
+
+        currBusy = CMDBUSY_DEV;
+        pCmdTbl = (LPWLLIB_CMD_TBL)WlibCmdTbl_DEV;
+        vCode = pReq->header.code & WL_CMDSCODE_MASK;
+        vCodeMax = DEV_REQ_NUM;
+        break;
+
+    default:
+        DbgWlPutchar(B_WL_DBG_CMDIF, (WL_DBG_CMDIF_NOTCMD));
+
+        vCode = 1;
+        vCodeMax = 0;
+    }
+
+    if (vCode > vCodeMax) {
+        DbgWlPrint(B_WL_DBG_CMDIF, "CmdIf[code=%04x]err\r\n", pReq->header.code);
+        err = WL_CMDRES_NOT_SUPPORT;
+    }
+
+    else if ((pReq->header.length < pCmdTbl[vCode].RequestMinLength) || (pCfm->header.length < pCmdTbl[vCode].ConfirmMinLength)) {
+        DbgWlPrint(B_WL_DBG_CMDIF, "CmdIf[id=%04x:len=%d/%d:%d/%d]err\r\n", pReq->header.code, pReq->header.length, pCmdTbl[vCode].RequestMinLength, pCfm->header.length, pCmdTbl[vCode].ConfirmMinLength);
+        err = WL_CMDRES_LENGTH_ERR;
+    }
+
+    if (err) {
+        DbgWlPrint(B_WL_DBG_CMDIF, "CmdIf[err=%04x]err\r\n", err);
+        pCfm->header.length = 1;
+        pCfm->resultCode = err;
+        goto end_of_command;
+    }
+
+    pCmdIf->Busy |= currBusy;
+    pCfm->resultCode = (*pCmdTbl[vCode].pCmdFunc)(pReq, pCfm);
+
+    switch (pCfm->resultCode) {
+    case WL_CMDRES_OPERATING_MLME:
+        return;
+
+    case WL_CMDRES_OPERATING_MA:
+        pCmdIf->Busy &= ~currBusy;
+        goto setup_next_command;
+    }
+
+end_of_command:
+    pCmdIf->Busy &= ~currBusy;
+
+    SendMessageToWmDirect(&wlMan->HeapMan.RequestCmd, pCmdIf->pCmd);
+
+setup_next_command:
+    if (GetHeapBufCount(&wlMan->HeapMan.RequestCmd) != 0) {
+        AddTask(TASK_NORMAL_PRIORITY, REQUEST_CMD_TASK_ID);
+    }
+}
+
+u16 CMD_ReservedReqCmd(WlCmdReq *pReqt, WlCmdCfm *pCfmt)
+{
+#pragma unused(pReqt, pCfmt)
+    return WL_CMDRES_NOT_SUPPORT;
+}
+
+void SendMessageToWmDirect(LPHEAPBUF_MAN pBufMan, void *pMsg)
+{
+    DbgWlPrint(B_WL_DBG_CMD_CODE, "[%04x.cfm]\r\n", ((WlCmdReq *)pMsg)->header.code);
+
+    if (GetHeapBufCount(&wlMan->HeapMan.ToWM) != 0) {
+        MoveHeapBuf(pBufMan, &wlMan->HeapMan.ToWM, pMsg);
+        AddTask(TASK_NORMAL_PRIORITY, SEND_MSG_TASK_ID);
+    } else {
+        if (OS_SendMessage(wlMan->pSendMsgQueue, pMsg, OS_MESSAGE_NOBLOCK)) {
+            DeleteHeapBuf(pBufMan, pMsg);
+        } else {
+            DbgPrint("Overflow send message\r\n");
+            MoveHeapBuf(pBufMan, &wlMan->HeapMan.ToWM, pMsg);
+        }
+    }
+}
+
+void SendMessageToWmTask(void)
+{
+    u16 *pMsg = (u16 *)GetHeapBufHeadAdrs(&wlMan->HeapMan.ToWM);
+
+    while ((u32)pMsg != HEAPBUF_HEAD_NONE) {
+        if (OS_SendMessage(wlMan->pSendMsgQueue, pMsg, OS_MESSAGE_NOBLOCK)) {
+            DeleteHeapBuf(&wlMan->HeapMan.ToWM, (LPHEAPBUF_HEADER)pMsg);
+            pMsg = (u16 *)GetHeapBufHeadAdrs(&wlMan->HeapMan.ToWM);
+        } else {
+            break;
+        }
+    }
+}
+
+void InitializeCmdIf(void)
+{
+
+    wlMan->CmdIf.Busy = 0;
+}

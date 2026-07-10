@@ -30,6 +30,32 @@ extern "C" {
 #define REG_SOUND0CNT_ADDR                                 (HW_REG_BASE + REG_SOUND0CNT_OFFSET)
 #define reg_SND_SOUND0CNT                                  (*( REGType32v *) REG_SOUND0CNT_ADDR)
 
+
+// I had a bit of fun with this
+#define REG_SOUND0CNT_NONE_OFFSET                          REG_SOUND0CNT_OFFSET
+#define REG_SOUND0TMR_NONE_OFFSET                          REG_SOUND0TMR_OFFSET
+#define REG_SOUND0SAD_NONE_OFFSET                          REG_SOUND0SAD_OFFSET
+#define REG_SOUNDX_TYPE_CNT_PAN                            REGType8v
+#define REG_SOUNDX_TYPE_CNT_VOL                            REGType8v
+#define REG_SOUNDX_TYPE_CNT_8                              REGType8v
+#define REG_SOUNDX_TYPE_CNT_NONE                           REGType32v
+#define REG_SOUNDX_TYPE_CNT_VOL_16                         REGType16v
+#define REG_SOUNDX_TYPE_TMR_NONE                           REGType16v
+#define REG_SOUNDX_TYPE_RPT_PT                             REGType16v
+#define REG_SOUNDX_TYPE_RPT_LEN                            REGType32v
+#define REG_SOUNDX_TYPE_SAD_NONE                           REGType32v
+#define REG_SOUNDX_X_X0X10(X)                              ((int)(X) * 0x10)
+#define REG_SOUNDX_X_OFF(X)                                ((int)(X))
+#define REG_SOUNDX_X_MACRO(X, Y, MID, ENDING, ...)         REG_SOUNDX_X_ ## ENDING
+#define REG_SOUNDX_MID_MACRO(X, Y, MID, ...)               MID
+#define REG_SOUNDX_OFFSET(X, Y, MID, MACRO)                REG_SOUND0 ## MID ## Y ## _OFFSET + MACRO(X)
+#define REG_SOUNDX_ADDRESS(X, Y, MID, MACRO)               (HW_REG_BASE + REG_SOUNDX_OFFSET(X, Y, MID, MACRO))
+#define REG_SOUNDX_TYPE(X, Y, MID)                         REG_SOUNDX_TYPE_ ## MID ## Y
+#define REG_SOUNDX_Y(X, Y, ...)                            _ ## Y
+#define REG_SOUNDX_X(X, ...)                               X
+#define reg_SND_SOUNDX_INNER(X, Y, MID, MACRO)             (*(REG_SOUNDX_TYPE(X, Y, MID) *) REG_SOUNDX_ADDRESS(X, Y, MID, MACRO))
+#define reg_SND_SOUNDX(...)                                reg_SND_SOUNDX_INNER(REG_SOUNDX_X(__VA_ARGS__, 0), REG_SOUNDX_Y(__VA_ARGS__, NONE, 0), REG_SOUNDX_MID_MACRO(__VA_ARGS__, CNT, CNT, 0), REG_SOUNDX_X_MACRO(__VA_ARGS__, X0X10, X0X10, X0X10, 0))
+
 /* SOUND0CNT_VOL_16 */
 
 #define REG_SOUND0CNT_VOL_16_OFFSET                        0x400
@@ -101,6 +127,10 @@ extern "C" {
 #define REG_SNDCAPCNT_OFFSET                               0x508
 #define REG_SNDCAPCNT_ADDR                                 (HW_REG_BASE + REG_SNDCAPCNT_OFFSET)
 #define reg_SND_SNDCAPCNT                                  (*( REGType16v *) REG_SNDCAPCNT_ADDR)
+
+#define REG_SNDCAPXCNT_OFFSET(X)                            0x508 + ((int)(X))
+#define REG_SNDCAPXCNT_ADDR(X)                              (HW_REG_BASE + REG_SNDCAPXCNT_OFFSET(X))
+#define reg_SND_SNDCAPXCNT(X)                               (*( REGType8v *) REG_SNDCAPXCNT_ADDR(X))
 
 /* SNDCAP0CNT */
 

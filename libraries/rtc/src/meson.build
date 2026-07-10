@@ -3,3 +3,9 @@ librtc_srcs = files(
     'internal.c',
     'convert.c'
 )
+
+librtc_arm7_srcs = files(
+    'control.c',
+    'instruction.c',
+    'gpio.c',
+)

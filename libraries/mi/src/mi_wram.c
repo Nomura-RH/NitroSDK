@@ -23,6 +23,8 @@
     #endif
 #endif
 
+// reg_GX_WVRAMSTAT is not defined anywhere... it might be supposed to be reg_MI_WVRAMSTAT?
+#ifdef SDK_ARM9
 MIWram MI_GetWramBank (void)
 {
 #ifdef SDK_ARM9
@@ -31,3 +33,4 @@ MIWram MI_GetWramBank (void)
     return (MIWram)(reg_GX_WVRAMSTAT & MI_WRAM_ARM9_ALL);
 #endif
 }
+#endif

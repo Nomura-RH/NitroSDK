@@ -47,6 +47,12 @@ typedef enum {
 #define SPI_TRANSMODE_ASSERT(x)      SDK_ASSERT((u32)x <= SPI_TRANSMODE_CONTINUOUS)
 #define SPI_BAUDRATE_ASSERT(x)       SDK_ASSERT((u32)x <= SPI_BAUDRATE_512KHZ)
 
+typedef struct SPIMessage {
+    u32 unk_0;
+    u32 unk_4;
+    u32 unk_8[4];
+} SPIMessage;
+
 static inline BOOL SPI_Enable (void)
 {
 	BOOL pre = (reg_SPI_SPICNT & ~REG_SPI_SPICNT_E_MASK) >> REG_SPI_SPICNT_E_SHIFT;
@@ -135,6 +141,14 @@ static inline u8 SPI_GetData (void)
 }
 
 void SPI_Init(u32 prio);
+void SPI_Lock(u32 param1);
+void SPI_Unlock(u32 param1);
+void SPIi_ReturnResult(u32 param1, u32 param2);
+BOOL SPIi_CheckException(u32);
+void SPIi_GetException(u32 param1);
+void SPIi_ReleaseException(u32 param1);
+BOOL SPIi_SetEntry(u32 param1, u32 param2, u16 param3, ...);
+BOOL SPIi_CheckEntry(void);
 
 #ifdef __cplusplus
 }

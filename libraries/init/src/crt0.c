@@ -1,11 +1,16 @@
 #include <nitro.h>
 #include <nitro/code32.h>
 
+#ifdef SDK_ARM9
 extern void NitroMain(void);
+#else // SDK_ARM7
+extern void NitroSpMain(void);
+#endif
 extern void OS_IrqHandler(void);
 
 static void do_autoload(void);
 static void init_cp15(void);
+static void detect_main_memory_size(void);
 void _start(void);
 static void INITi_CpuClear32(register u32 data, register void *destp, register u32 size);
 
@@ -38,6 +43,7 @@ SDK_WEAK_SYMBOL asm void _start (void)
     mov r12, #HW_REG_BASE
     str r12, [r12, #REG_IME_OFFSET]
 
+#ifdef SDK_ARM9
 @wait_vcount_0:
     ldrh r0, [r12, #REG_VCOUNT_OFFSET]
     cmp r0, #0
@@ -135,8 +141,91 @@ SDK_WEAK_SYMBOL asm void _start (void)
     subne sp, sp, #4
 #endif
     bx r1
+#else // SDK_ARM7
+    ldr r1, =SDK_STATIC_BSS_START
+    mov r0, #0x03800000
+    cmp r0, r1
+    bpl _0238001c
+    b _02380020
+
+_0238001c:
+    mov r1, r0
+
+_02380020:
+    ldr r2, =0x0380ff00
+    mov r0, #0
+
+_02380028:
+    cmp r1, r2
+    blt _02380034
+    b _02380038
+
+_02380034:
+    stmia r1!, {r0}
+
+_02380038:
+    blt _02380028
+    mov r0, #0x13
+    msr cpsr_c, r0
+    ldr sp, =HW_PRV_WRAM_SVC_STACK_END
+    mov r0, #0x12
+    msr cpsr_c, r0
+    ldr r0, =HW_PRV_WRAM_IRQ_STACK_END
+    mov sp, r0
+    ldr r1, =SDK_IRQ_STACKSIZE
+    sub r1, r0, r1
+    mov r0, #0x1f
+    msr cpsr_cxsf, r0
+    sub sp, r1, #4
+    ldr r0, =0x023fe940
+    ldr r1, =0x027ffa80
+    add r2, r1, #0x160
+
+_02380078:
+    ldr r3, [r0], #4
+    str r3, [r1], #4
+    cmp r1, r2
+    bmi _02380078
+    ldr r0, =0x023fe904
+    add r2, r1, #0x20
+
+_02380090:
+    ldr r3, [r0], #4
+    str r3, [r1], #4
+    cmp r1, r2
+    bmi _02380090
+
+    bl do_autoload
+
+    ldr r0, =_start_ModuleParams
+    ldr r1, [r0, #0xc]
+    ldr r2, [r0, #0x10]
+    mov r0, #0
+
+@1:
+    cmp r1, r2
+#ifdef SP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS
+	bcc @do_str
+    b @skip_str
+@do_str:
+    str r0, [r1], #4
+@skip_str:
+#else
+    strcc r0, [r1], #4
+#endif
+    bcc @1
+
+    bl detect_main_memory_size
+    ldr r1, =HW_INTR_VECTOR_BUF
+    ldr r0, =OS_IrqHandler
+    str r0, [r1]
+    ldr r1, =NitroSpMain
+    ldr lr, =HW_RESET_VECTOR
+    bx r1
+#endif
 }
 
+#ifdef SDK_ARM9
 static asm void  INITi_CpuClear32 (register u32 data, register void *destp, register u32 size)
 {
 	add r12, r1, r2
@@ -154,6 +243,7 @@ static asm void  INITi_CpuClear32 (register u32 data, register void *destp, regi
 	blt @20
 	bx lr
 }
+#endif
 
 void *const _start_ModuleParams[] = {
 	(void *)SDK_AUTOLOAD_LIST,
@@ -161,12 +251,15 @@ void *const _start_ModuleParams[] = {
 	(void *)SDK_AUTOLOAD_START,
 	(void *)SDK_STATIC_BSS_START,
 	(void *)SDK_STATIC_BSS_END,
+#ifdef SDK_ARM9
 	(void *)0,
 	(void *)SDK_VERSION_ID,
 	(void *)SDK_NITROCODE_BE,
 	(void *)SDK_NITROCODE_LE,
+#endif
 };
 
+#ifdef SDK_ARM9
 asm void  MIi_UncompressBackward (register void *bottom)
 {
 #define data            r0
@@ -240,6 +333,7 @@ asm void  MIi_UncompressBackward (register void *bottom)
 	ldmfd sp !, {r4 - r7}
 	@exit bx lr
 }
+#endif
 
 static asm void do_autoload (void)
 {
@@ -258,10 +352,16 @@ static asm void do_autoload (void)
 @2:
 	cmp infop, infop_end
 	beq @skipout
+#ifdef SDK_ARM9
 	ldr dest_begin, [infop], #4
 	ldr tmp, [infop], #4
 	add dest_end, dest_begin, tmp
 	mov dest, dest_begin
+#else // SDK_ARM7
+    ldr dest, [infop], #4
+    ldr dest_begin, [infop], #4
+    add dest_end, dest, dest_begin
+#endif
 @1:
 	cmp dest, dest_end
 #ifdef SP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS
@@ -280,8 +380,13 @@ static asm void do_autoload (void)
 	strmi tmp, [dest], #4
 #endif
 	bmi @1
+#ifdef SDK_ARM9
 	ldr tmp, [infop], #4
 	add dest_end, dest, tmp
+#else // SDK_ARM7
+    ldr dest_begin, [infop], #4
+    add dest_end, dest, dest_begin
+#endif
 	mov tmp, #0
 @3:
 	cmp dest, dest_end
@@ -295,6 +400,7 @@ static asm void do_autoload (void)
 	strcc tmp, [dest], #4
 #endif
 	bcc @3
+#ifdef SDK_ARM9
 	bic dest, dest_begin, #HW_CACHE_LINE_SIZE - 1
 @cacheflush:
 	mcr p15, 0, tmp, c7, c10, 4
@@ -304,6 +410,9 @@ static asm void do_autoload (void)
 	cmp dest, dest_end
 	blt @cacheflush
 	b @2
+#else // SDK_ARM7
+    beq @2
+#endif
 @skipout:
 	b _start_AutoloadDoneCallback
 }
@@ -313,6 +422,7 @@ SDK_WEAK_SYMBOL asm void _start_AutoloadDoneCallback (void *argv[])
 	bx lr
 }
 
+#ifdef SDK_ARM9
 static asm void init_cp15 (void)
 {
 	mrc p15, 0, r0, c1, c0, 0
@@ -427,8 +537,39 @@ static asm void init_cp15 (void)
 SDK_WEAK_SYMBOL void NitroStartUp (void)
 {
 }
+#else // SDK_ARM7
+static asm void detect_main_memory_size(void)
+{
+    mov r0, #1
+    mov r1, #0
+    ldr r2, =0x027ffffa
+    sub r3, r2, #0x400000
+@1:
+    strh r1, [r2]
+    ldrh r12, [r3]
+    cmp r1, r12
+#ifdef SP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS
+    bne @do_mov
+    b @skip_mov
+@do_mov:
+    mov r0, #2
+@skip_mov:
+#else
+    movne r0, #2
+#endif
+    bne @2
+    add r1, r1, #1
+    cmp r1, #2
+    bne @1
+@2:
+    strh r0, [r2]
+    bx lr
+}
+#endif
 
+#ifdef SDK_ARM9
 void OSi_ReferSymbol (void *symbol)
 {
 #pragma unused(symbol)
 }
+#endif

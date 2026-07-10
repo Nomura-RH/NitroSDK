@@ -15,6 +15,8 @@ extern "C" {
 #else
     #include <nitro/spi/ARM7/spi.h>
     #include <nitro/spi/ARM7/pm.h>
+    #include <nitro/spi/ARM7/mic.h>
+    #include <nitro/spi/ARM7/tp.h>
 #endif
 
 #ifdef __cplusplus

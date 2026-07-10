@@ -12,3 +12,8 @@ libctrdg_srcs = files(
     'ctrdg_sram.c',
     'ctrdg_task.c'
 )
+
+libctrdg_arm7_srcs = files(
+    'ctrdg.c',
+    'ctrdg_proc_arm7.c',
+)

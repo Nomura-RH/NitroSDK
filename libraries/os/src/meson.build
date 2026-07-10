@@ -31,3 +31,30 @@ libos_srcs = files(
     'os_entropy.c',
     'os_terminate_proc.c'
 )
+
+libos_arm7_srcs = files(
+    'os_irqHandler.c',
+    'os_irqTable.c',
+    'os_interrupt.c',
+    'os_spinLock.c',
+    'os_printf.c',
+    'os_thread.c',
+    'os_context.c',
+    'os_emulator.c',
+    'os_message.c',
+    'os_mutex.c',
+    'os_init.c',
+    'os_arena.c',
+    'os_alloc.c',
+    'os_exception.c',
+    'os_timer.c',
+    'os_tick.c',
+    'os_alarm.c',
+    'os_valarm.c',
+    'os_system.c',
+    'os_profile.c',
+    'os_reset.c',
+    'os_terminate_proc.c',
+    'os_ownerInfo.c',
+    'os_entropy.c',
+)

@@ -27,6 +27,8 @@ void CARD_InitPulledOutCallback(void);
 #endif
 
 BOOL CARD_IsPulledOut(void);
+BOOL CARD_IsCardIreqLo(void);
+BOOL CARD_CompareCardID(void);
 
 #ifdef SDK_ARM7
     void CARD_CheckPullOut_Polling(void);

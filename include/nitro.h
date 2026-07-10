@@ -65,6 +65,7 @@
         #include <nitro/vib.h>
     #else
         #include <nitro/exi.h>
+        #include <nitro/nvram.h>
     #endif
 #endif
 

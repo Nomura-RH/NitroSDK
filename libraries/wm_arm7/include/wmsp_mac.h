@@ -1,0 +1,54 @@
+#ifndef LIBRARIES_WM_ARM7_WMSP_MAC_H__
+#define LIBRARIES_WM_ARM7_WMSP_MAC_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef HW_WIRELESS_INTF0
+#define HW_WIRELESS_INTF0 0x04800000
+#endif
+#ifndef HW_WIRELESS_INTF1
+#define HW_WIRELESS_INTF1 0x04808000
+#endif
+#ifndef MAC_REG_BASE
+#define MAC_REG_BASE (HW_WIRELESS_INTF1)
+#endif
+#ifndef MAC_MEM_BASE
+#define MAC_MEM_BASE (HW_WIRELESS_INTF0 + 0x4000)
+#endif
+#define OFST_MREG_KEYIN_ADRS  0x094
+#define OFST_MREG_KEYOUT_ADRS 0x098
+#define MREG_KEYIN_ADRS       (MAC_REG_BASE + OFST_MREG_KEYIN_ADRS)
+#define MREG_KEYOUT_ADRS      (MAC_REG_BASE + OFST_MREG_KEYOUT_ADRS)
+
+#define OFST_MREG_TMPTT_ACT_TIME 0x124
+#define MREG_TMPTT_ACT_TIME      (MAC_REG_BASE + OFST_MREG_TMPTT_ACT_TIME)
+#define OFST_MREG_TBTT_ACT_TIME  0x128
+#define MREG_TBTT_ACT_TIME       (MAC_REG_BASE + OFST_MREG_TBTT_ACT_TIME)
+#define OFST_MREG_RF_WAKEUP_TIME 0x150
+#define MREG_RF_WAKEUP_TIME      (MAC_REG_BASE + OFST_MREG_RF_WAKEUP_TIME)
+
+#define OFST_MREG_TSF  0x0F8
+#define OFST_MREG_TSF0 0x0F8
+#define OFST_MREG_TSF1 0x0FA
+#define OFST_MREG_TSF2 0x0FC
+#define OFST_MREG_TSF3 0x0FE
+#define MREG_TSF       (MAC_REG_BASE + OFST_MREG_TSF)
+#define MREG_TSF0      (MAC_REG_BASE + OFST_MREG_TSF0)
+#define MREG_TSF1      (MAC_REG_BASE + OFST_MREG_TSF1)
+#define MREG_TSF2      (MAC_REG_BASE + OFST_MREG_TSF2)
+#define MREG_TSF3      (MAC_REG_BASE + OFST_MREG_TSF3)
+
+#define GetMacRxAdrs(_x_) (MAC_MEM_BASE + ((u32)(_x_) * 2))
+
+#define RXSTS_TX_KEY    (0x0001 << 14)
+#define RXSTS_POLLED_MP (0x0001 << 13)
+#define RXSTS_KEY_IN    (0x0001 << 12)
+#define RXSTS_KEY_OUT   (0x0001 << 11)
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
+#endif /* LIBRARIES_WM_ARM7_WMSP_MAC_H__ */

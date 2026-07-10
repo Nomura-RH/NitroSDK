@@ -1,4 +1,4 @@
-project('NitroSDK', 'c',
+project('NitroSDK', ['c', 'nasm'],
     default_options: {
         'default_library': 'static',
         'prefer_static':    true
@@ -66,6 +66,21 @@ nitrosdk_args = [
     '-DNNS_FINALROM'
 ]
 
+nitrosdk_arm7_args = [
+    '-proc', 'arm7tdmi',
+    '-USDK_ARM9',
+    '-DSDK_ARM7',
+    '-DSP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS',
+    '-O4,s',
+    '-sym', 'on',
+    '-fp', 'soft',
+    '-wrap:sdk', '2.0/sp1p2',
+]
+
+nitrosdk_arm7_args_dep = declare_dependency(
+  compile_args: nitrosdk_arm7_args
+)
+
 add_project_arguments(nitrosdk_args,
     language: 'c',
     native: false
@@ -82,16 +97,12 @@ nitro_pch = meson.current_source_dir() / 'include/pch/nitro_pch.h'
 ############################################################
 nitrosdk_includes = include_directories('gen', 'include')
 include_nitro = include_directories('include' / 'nitro')
+wl_includes = include_directories('include' / 'nitro_wl' / 'ARM7')
 
 ############################################################
 ###                      LIBRARIES                       ###
 ############################################################
 subdir('libraries')
-
-############################################################
-###                ARM7 PREBUILT BINARIES                ###
-############################################################
-subdir('components')
 
 ############################################################
 ###                      SPECFILES                       ###
@@ -102,6 +113,19 @@ subdir('specfiles')
 ###                        TOOLS                         ###
 ############################################################
 subdir('tools')
+
+nitrosdk_arm7_dep = declare_dependency(
+    compile_args: nitrosdk_args + nitrosdk_arm7_args,
+    include_directories: nitrosdk_includes,
+    link_with: nitrosdk_arm7_libs,
+    objects: crt0_obj_arm7,
+    sources: fx_const_h
+)
+
+############################################################
+###                ARM7 PREBUILT BINARIES                ###
+############################################################
+subdir('components')
 
 ############################################################
 ###                    FOR CONSUMERS                     ###

@@ -6,3 +6,7 @@ libmath_srcs = files(
     'qsort.c',
     'fft.c'
 )
+
+libmath_arm7_srcs = files(
+    'math.c'
+)

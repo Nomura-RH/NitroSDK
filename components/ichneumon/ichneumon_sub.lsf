@@ -1,0 +1,45 @@
+Static ichneumon_sub
+{
+    Address 0x02380000
+    StackSize 1024 1024
+}
+
+Autoload MAIN
+{
+    Address 0x027E0000
+    Library ichneumon_sub.p/src_dtcm.c.o
+}
+
+Autoload WRAM
+{
+    Address 0x037F8000
+    Object ichneumon_sub.p/src_main.c.o
+
+    Library libos_arm7.a (.wram)
+    Library libwm_arm7.a (.wram)
+
+    Library libos_arm7.a
+    Library libmi_arm7.a
+    Library libpxi_arm7.a
+    Library libexi_arm7.a
+    Library libpad_arm7.a
+    Library libsnd_arm7.a
+    Library libfs_arm7.a
+    Library libcard_arm7.a
+    Library libsubpsyscall_arm7.a
+    Library libspi_arm7.a
+    Library libctrdg_arm7.a
+    Library libnvram_arm7.a
+    Library librtc_arm7.a
+    Library libwvr_arm7.a
+    Library libmath_arm7.a
+    Library FP_fullI_v4t_LE.a
+}
+
+Autoload EXT
+{
+    Address 0x06000000
+    Library libwm_arm7.a
+    Library libwl_arm7.a
+    Object ichneumon_sub.p/src_ext.c.o
+}

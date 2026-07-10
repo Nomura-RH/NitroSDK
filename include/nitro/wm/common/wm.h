@@ -764,7 +764,7 @@ typedef struct WMStatus {
 	u16 mp_current_singlePacketMode;
 	u16 mp_current_defaultRetryCount;
 	u16 mp_current_ignoreFatalErrorMode;
-	u8 reserved_g[2];
+	u16 unk_7c4;
 } WMStatus, WMstatus;
 
 typedef struct WMArm7Buf {
