@@ -27,8 +27,6 @@
 #define     WVR_THREAD_PRIO_LOW             10
 #define     WVR_THREAD_PRIO_HIGH            2
 
-#define WVR_THREAD_STACK_SIZE 0x400
-
 static void *wvrVramImageBuf;
 static u32 wvrVramImageBufSize;
 static OSHeapHandle wvrHeapHandle;

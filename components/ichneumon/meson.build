@@ -5,7 +5,7 @@ ichneumon_sub_lcf_template = files('ichneumon_sub.lcf.template')
 
 ichneumon_sub_lcf = custom_target('ichneumon_sub.lcf',
     output: 'ichneumon_sub.lcf',
-    input: ichneumon_sub_lsf + ichneumon_sub_lcf_template,
+    input: [ichneumon_sub_lsf, ichneumon_sub_lcf_template],
     command: [makelcf_exe, '@INPUT@', '@OUTPUT@']
 )
 
