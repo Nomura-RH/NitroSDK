@@ -70,11 +70,11 @@ nitrosdk_arm7_args = [
     '-proc', 'arm7tdmi',
     '-USDK_ARM9',
     '-DSDK_ARM7',
-    '-DSP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS',
+    '-DSDK_WIRELESS_IN_VRAM',
+    '-DSDK_NOINIT',
     '-O4,s',
     '-sym', 'on',
     '-fp', 'soft',
-    '-wrap:sdk', '2.0/sp1p2',
 ]
 
 nitrosdk_arm7_args_dep = declare_dependency(

@@ -20,7 +20,6 @@ ichneumon_sub_link_args = [
     '-msgstyle' ,'gcc',
     '-m', '_start',
     '-sym', 'on',
-    '-wrap:sdk', '2.0/sp2p2',
 ]
 
 FP_fullI_v4t_LE = fs.copyfile('FP_fullI_v4t_LE.a')

@@ -26,7 +26,7 @@ static void WlIntrStartRx(void) __attribute__((never_inline));
 void UpdateRxBufBnry(u32 bnry, u32 length);
 static void SetParentTbttTxq(void);
 
-void MacBugTxMp(void *);
+void MacBugTxMp(void *arg);
 
 #define WAIT_RX_ADRS2  16 * 4
 #define WAIT_RX_BITMAP 28 * 4

@@ -1,367 +1,320 @@
+#include <nitro/fs/file.h>
 #include <nitro/os.h>
-#include <nitro/nvram.h>
+#include <nitro/pad/ARM7/xyButton.h>
+#include <nitro/spi/ARM7/nvram.h>
+#include <nitro/spi/ARM7/pm.h>
+#include <nitro/spi/common/userInfo_ts_300.h>
+#include <nitro/wm/ARM7/wm.h>
+
+#define THREAD_PRIO_SPI       2
+#define THREAD_PRIO_SND       6
+#define THREAD_PRIO_RTC_ALARM 11
+#define THREAD_PRIO_RTC       12
+
+#define THREAD_PRIO_FS (OS_THREAD_LAUNCHER_PRIORITY - 1)
 
 extern void WVR_ShelterExtWram(void);
-extern u16 WMSP_GetAllowedChannel(u16 bitField);
 
-static u32 GetRomValidLanguage(void);
+static OSHeapHandle InitializeAllocateSystem(void);
+static void ReadUserInfo(void);
+#ifdef NVRAM_CONFIG_DATA_EX_VERSION
+static u16 GetRomValidLanguage(void);
+static s32 CheckCorrectNCDEx(NVRAMConfigEx *ncdsp);
+#else
+static s32 CheckCorrectNCD(NVRAMConfig *ncdsp);
+#endif
 static void VBlankIntr(void);
 
-asm void NitroSpMain(void)
+#ifdef MONGOOSE_USE_OVERLAY
+FS_EXTERN_OVERLAY(mongoose_sub_mainmemory);
+#endif
+
+void NitroSpMain(void)
 {
-    stmdb sp!, {r3, r4, r5, r6, r7, r8, r9, r10, r11, lr}
-    sub sp, sp, #0x210
-    bl WVR_ShelterExtWram
-    bl OS_Init
-    bl OS_InitThread
-    add r2, sp, #4
-    mov r0, #0x20
-    mov r1, #2
-    bl NVRAM_ReadDataBytes
-    ldr r0, [sp, #4]
-    add r2, sp, #0x10
-    mov r0, r0, lsl #3
-    str r0, [sp, #4]
-    mov r1, #0x100
-    bl NVRAM_ReadDataBytes
-    ldr r0, [sp, #4]
-    mov r1, #0x100
-    add r0, r0, #0x100
-    add r2, sp, #0x110
-    bl NVRAM_ReadDataBytes
-    mov r0, #0x1d
-    mov r1, #1
-    add r2, sp, #0
-    mov r6, #0
-    bl NVRAM_ReadDataBytes
-    ldrb r0, [sp]
-    cmp r0, #0xff
-    moveq r0, r6
-    beq _037F8080
-    tst r0, #0x50
-    movne r0, #1
-    moveq r0, r6
+    OSHeapHandle heapHandle;
 
-_037F8080:
-    cmp r0, #0
-    beq _037F8154
-    bl GetRomValidLanguage
-    mov r8, r0
-    mov r11, #1
-    and r7, r8, #0x40
-    mov r10, #0
-    add r5, sp, #0x10
-    mov r4, r11
-    b _037F8148
+#ifdef SDK_WIRELESS_IN_VRAM
+    WVR_ShelterExtWram();
+#endif
 
-_037F80A8:
-    ldr r0, =0x0000ffff
-    add r9, r5, r10, lsl #8
-    mov r1, r9
-    mov r2, #0x70
-    bl SVC_GetCRC16
-    mov r2, r9
-    ldrh r1, [r2, #0x72]
-    cmp r0, r1
-    bne _037F813C
-    ldrh r0, [r2, #0x70]
-    cmp r0, #0x80
-    bcs _037F813C
-    ldr r0, =0x0000ffff
-    mov r2, #0x8a
-    add r1, r9, #0x74
-    bl SVC_GetCRC16
-    mov r2, r9
-    ldrh r1, [r2, #0xfe]
-    cmp r0, r1
-    bne _037F813C
-    ldrh r1, [r2, #0x76]
-    ldrb r0, [r2, #0x75]
-    tst r1, r4, lsl r0
-    beq _037F813C
-    tst r8, r1
-    ldrneh r1, [r9, #0x64]
-    andne r0, r0, #7
-    bicne r1, r1, #7
-    orrne r0, r1, r0
-    strneh r0, [r9, #0x64]
-    add r0, r5, r10, lsl #8
-    ldrh r0, [r0, #0x76]
-    mvn r0, r0
-    tst r7, r0
-    movne r6, #3
-    bne _037F81F4
-    orr r6, r6, r11, lsl r10
+    OS_Init();
+    OS_InitThread();
 
-_037F813C:
-    add r0, r10, #1
-    mov r0, r0, lsl #0x10
-    mov r10, r0, lsr #0x10
+    ReadUserInfo();
 
-_037F8148:
-    cmp r10, #2
-    bcc _037F80A8
-    b _037F81B8
+    PXI_Init();
 
-_037F8154:
-    bl GetRomValidLanguage
-    tst r0, #0x40
-    movne r6, #3
-    bne _037F81F4
-    ldr r8, =0x0000ffff
-    mov r9, #0
-    add r7, sp, #0x10
-    mov r4, #1
-    mov r5, #0x70
+    heapHandle = InitializeAllocateSystem();
 
-_037F8178:
-    mov r0, r8
-    mov r2, r5
-    add r1, r7, r9, lsl #8
-    bl SVC_GetCRC16
-    add r2, r7, r9, lsl #8
-    ldrh r1, [r2, #0x72]
-    cmp r0, r1
-    bne _037F81A4
-    ldrh r0, [r2, #0x70]
-    cmp r0, #0x80
-    orrcc r6, r6, r4, lsl r9
+    SND_Init(THREAD_PRIO_SND);
 
-_037F81A4:
-    add r0, r9, #1
-    mov r0, r0, lsl #0x10
-    mov r9, r0, lsr #0x10
-    cmp r9, #2
-    bcc _037F8178
+    PAD_InitXYButton();
 
-_037F81B8:
-    cmp r6, #1
-    cmpne r6, #2
-    beq _037F81F4
-    cmp r6, #3
-    bne _037F81F0
-    ldrh r1, [sp, #0x80]
-    add r0, sp, #0x100
-    add r1, r1, #1
-    ldrh r0, [r0, #0x80]
-    and r1, r1, #0x7f
-    cmp r1, r0
-    moveq r6, #2
-    movne r6, #1
-    b _037F81F4
+    OS_SetIrqFunction(OS_IE_V_BLANK, VBlankIntr);
+    OS_EnableIrqMask(OS_IE_V_BLANK);
+    GX_VBlankIntr(TRUE);
+    OS_EnableIrq();
+    OS_EnableInterrupts();
 
-_037F81F0:
-    mov r6, #0
+    FS_Init(FS_DMA_NOT_USE);
+    FS_CreateReadServerThread(THREAD_PRIO_FS);
 
-_037F81F4:
-    cmp r6, #3
-    blt _037F8210
-    ldr r1, =0x027ffc80
-    mvn r0, #0
-    mov r2, #0x74
-    bl MIi_CpuClear32
-    b _037F82CC
+    RTC_Init(THREAD_PRIO_RTC);
 
-_037F8210:
-    cmp r6, #0
-    beq _037F82BC
-    ldr r0, =0xffffff2a
-    mov r1, r6, lsl #8
-    add r0, sp, r0
-    ldrb r0, [r0, r6, lsl #8]
-    cmp r0, #0xa
-    bcs _037F825C
-    add r0, sp, #0x10
-    mov r3, #0xa
-    mov r2, #0
-    add r1, r0, r1
-    b _037F8250
+#ifndef SDK_WIRELESS_IN_VRAM
+#ifdef MONGOOSE_USE_OVERLAY
+    FS_LoadOverlay(MI_PROCESSOR_ARM7, FS_OVERLAY_ID(mongoose_sub_mainmemory));
+#endif
+    WVR_Begin(heapHandle);
+#else
+    WVR_Init(heapHandle);
+#endif
 
-_037F8244:
-    add r0, r1, r3, lsl #1
-    strh r2, [r0, #-0xfc]
-    sub r3, r3, #1
+    SPI_Init(THREAD_PRIO_SPI);
 
-_037F8250:
-    ldrb r0, [r1, #-0xe6]
-    cmp r3, r0
-    bgt _037F8244
+    while (TRUE) {
+        OS_Halt();
 
-_037F825C:
-    ldr r0, =0xffffff60
-    mov r1, r6, lsl #8
-    add r0, sp, r0
-    ldrb r0, [r0, r6, lsl #8]
-    cmp r0, #0x1a
-    bcs _037F82A0
-    add r0, sp, #0x10
-    mov r3, #0x1a
-    mov r2, #0
-    add r1, r0, r1
-    b _037F8294
+        if (OS_IsResetOccurred()) {
+            CTRDG_VibPulseEdgeUpdate(NULL);
 
-_037F8288:
-    add r0, r1, r3, lsl #1
-    strh r2, [r0, #-0xe6]
-    sub r3, r3, #1
+            OS_ResetSystem();
+        }
 
-_037F8294:
-    ldrb r0, [r1, #-0xb0]
-    cmp r3, r0
-    bgt _037F8288
+        CTRDG_CheckPullOut_Polling();
 
-_037F82A0:
-    ldr r1, =0x027ffc80
-    add r2, sp, #0x10
-    sub r0, r6, #1
-    add r0, r2, r0, lsl #8
-    mov r2, #0x74
-    bl MIi_CpuCopy32
-    b _037F82CC
-
-_037F82BC:
-    ldr r1, =0x027ffc80
-    mov r0, #0
-    mov r2, #0x74
-    bl MIi_CpuClear32
-
-_037F82CC:
-    add r2, sp, #8
-    mov r0, #0x36
-    mov r1, #6
-    bl NVRAM_ReadDataBytes
-    ldr r4, =0x027ffc80
-    add r0, sp, #8
-    add r1, r4, #0x74
-    mov r2, #6
-    bl MI_CpuCopy8
-    add r2, sp, #2
-    mov r0, #0x3c
-    mov r1, #2
-    bl NVRAM_ReadDataBytes
-    ldrh r0, [sp, #2]
-    mov r0, r0, lsl #0xf
-    mov r0, r0, lsr #0x10
-    bl WMSP_GetAllowedChannel
-    strh r0, [r4, #0x7a]
-    bl PXI_Init
-    mov r0, #8
-    bl OS_GetArenaHi
-    mov r4, r0
-    mov r0, #8
-    bl OS_GetArenaLo
-    mov r1, r0
-    mov r2, r4
-    mov r0, #8
-    mov r3, #1
-    bl OS_InitAlloc
-    mov r4, r0
-    mov r0, #8
-    bl OS_GetArenaHi
-    sub r2, r0, r4
-    mov r0, r4
-    mov r1, #0
-    bl MI_CpuFill8
-    mov r1, r4
-    mov r0, #8
-    bl OS_SetArenaLo
-    mov r0, #8
-    bl OS_GetArenaHi
-    mov r4, r0
-    mov r0, #8
-    bl OS_GetArenaLo
-    mov r1, r0
-    mov r2, r4
-    mov r0, #8
-    bl OS_CreateHeap
-    movs r4, r0
-    bpl _037F8398
-    bl OS_Terminate
-
-_037F8398:
-    mov r1, r4
-    mov r0, #8
-    bl OS_SetCurrentHeap
-    mov r1, r4
-    mov r0, #8
-    bl OS_CheckHeap
-    cmp r0, #0x2100
-    bcs _037F83BC
-    bl OS_Terminate
-
-_037F83BC:
-    mov r0, #6
-    bl SND_Init
-    bl PAD_InitXYButton
-    ldr r1, =VBlankIntr
-    mov r0, #1
-    bl OS_SetIrqFunction
-    mov r0, #1
-    bl OS_EnableIrqMask
-    ldr r3, =REG_DISPSTAT_ADDR
-    mov r0, #1
-    ldrh r1, [r3]
-    ldrh r1, [r3]
-    add r2, r3, #0x204
-    orr r1, r1, #8
-    strh r1, [r3]
-    ldrh r1, [r2]
-    strh r0, [r2]
-    bl OS_EnableInterrupts
-    mvn r0, #0
-    bl FS_Init
-    mov r0, #0xf
-    bl CARD_SetThreadPriority
-    mov r0, #0xc
-    bl RTC_Init
-    mov r0, r4
-    bl WVR_Init
-    mov r0, #2
-    bl SPI_Init
-    mov r4, #0
-
-_037F8430:
-    bl SVC_Halt
-    bl OS_IsResetOccurred
-    cmp r0, #0
-    beq _037F844C
-    mov r0, r4
-    bl CTRDG_VibPulseEdgeUpdate
-    bl OS_ResetSystem
-
-_037F844C:
-    bl CTRDG_CheckPullOut_Polling
-    bl CARD_CheckPullOut_Polling
-    b _037F8430
+#ifndef SDK_SMALL_BUILD
+        CARD_CheckPullOut_Polling();
+#endif
+    }
 }
 
-static asm u32 GetRomValidLanguage(void)
+static OSHeapHandle InitializeAllocateSystem(void)
 {
-    ldr r1, =0x027ffe1d
-    mov r0, #0
-    ldrb r1, [r1]
-    cmp r1, #0x80
-    orreq r0, r0, #0x40
-    moveq r0, r0, lsl #0x10
-    moveq r0, r0, lsr #0x10
-    bxeq lr
-    cmp r1, #0x40
-    orreq r0, r0, #0x80
-    moveq r0, r0, lsl #0x10
-    moveq r0, r0, lsr #0x10
-    bx lr
+    void *tempLo = OS_InitAlloc(OS_ARENA_WRAM_SUBPRIV, OS_GetWramSubPrivArenaLo(), OS_GetWramSubPrivArenaHi(), 1);
+
+    MI_CpuClear8(tempLo, (u32)OS_GetWramSubPrivArenaHi() - (u32)tempLo);
+
+    OS_SetArenaLo(OS_ARENA_WRAM_SUBPRIV, tempLo);
+
+    OSHeapHandle hh = OS_CreateHeap(OS_ARENA_WRAM_SUBPRIV, OS_GetWramSubPrivArenaLo(), OS_GetWramSubPrivArenaHi());
+
+    if (hh < 0) {
+        OS_Panic("ARM7: Fail to create heap.\n");
+    }
+
+    OS_SetCurrentHeap(OS_ARENA_WRAM_SUBPRIV, hh);
+
+    u32 heapSize = OS_CheckHeap(OS_ARENA_WRAM_SUBPRIV, hh);
+    if (WM_WL_HEAP_SIZE > heapSize) {
+        OS_Panic("Insufficient heap size. ( %xh < %xh )\n", heapSize, WM_WL_HEAP_SIZE);
+    }
+
+    return hh;
 }
 
-static asm void VBlankIntr(void)
-{
-    stmdb sp!, {r3, lr}
-    ldr r0, =PMi_Initialized
-    ldr r0, [r0]
-    cmp r0, #0
-    beq _037F84D8
-    bl PM_SelfBlinkProc
+#ifdef WM_PRECALC_ALLOWEDCHANNEL
+extern u16 WMSP_GetAllowedChannel(u16 bitField);
+#endif
 
-_037F84D8:
-    ldmia sp!, {r3, lr}
-    bx lr
+static void ReadUserInfo(void)
+{
+    s32 offset;
+#ifdef NVRAM_CONFIG_DATA_EX_VERSION
+    NVRAMConfigEx temp[2];
+#else
+    NVRAMConfig temp[2];
+#endif
+    s32 check;
+    u8 *p = OS_GetSystemWork()->nvramUserInfo;
+
+#ifdef NVRAM_CONFIG_CONST_ADDRESS
+    offset = NVRAM_CONFIG_DATA_ADDRESS_DUMMY;
+#else
+    NVRAM_ReadDataBytes(NVRAM_CONFIG_DATA_OFFSET_ADDRESS, NVRAM_CONFIG_DATA_OFFSET_SIZE, &offset);
+    offset <<= NVRAM_CONFIG_DATA_OFFSET_SHIFT;
+#endif
+
+#ifdef NVRAM_CONFIG_DATA_EX_VERSION
+    NVRAM_ReadDataBytes(offset, sizeof(NVRAMConfigEx), (u8 *)&temp[0]);
+    NVRAM_ReadDataBytes(offset + SPI_NVRAM_PAGE_SIZE, sizeof(NVRAMConfigEx), (u8 *)&temp[1]);
+
+    check = CheckCorrectNCDEx(temp);
+#else
+    NVRAM_ReadDataBytes(offset, sizeof(NVRAMConfig), (u8 *)&temp[0]);
+    NVRAM_ReadDataBytes(offset + SPI_NVRAM_PAGE_SIZE, sizeof(NVRAMConfig), (u8 *)&temp[1]);
+
+    check = CheckCorrectNCD(temp);
+#endif
+
+    if (check >= 3) {
+        MI_CpuFill32(p, 0xFFFFFFFF, sizeof(NVRAMConfig));
+    } else if (check) {
+#ifdef SDK_TS
+#if (SDK_TS_VERSION >= 200 || SDK_NVRAM_FORMAT >= 100)
+        s32 i;
+
+        if (temp[check - 1].ncd.owner.nickname.length < NVRAM_CONFIG_NICKNAME_LENGTH) {
+            for (i = NVRAM_CONFIG_NICKNAME_LENGTH; i > temp[check - 1].ncd.owner.nickname.length; i--) {
+                temp[check - 1].ncd.owner.nickname.str[i - 1] = 0;
+            }
+        }
+
+        if (temp[check - 1].ncd.owner.comment.length < NVRAM_CONFIG_COMMENT_LENGTH) {
+            for (i = NVRAM_CONFIG_COMMENT_LENGTH; i > temp[check - 1].ncd.owner.comment.length; i--) {
+                temp[check - 1].ncd.owner.comment.str[i - 1] = 0;
+            }
+        }
+#endif
+#endif
+
+        MI_CpuCopy32(&temp[check - 1], p, sizeof(NVRAMConfig));
+    } else {
+        MI_CpuClear32(p, sizeof(NVRAMConfig));
+    }
+
+    u8 wMac[6];
+
+    NVRAM_ReadDataBytes(NVRAM_CONFIG_MACADDRESS_ADDRESS, 6, wMac);
+
+    p = (u8 *)((u32)p + ((sizeof(NVRAMConfig) + 3) & ~3));
+
+    MI_CpuCopy8(wMac, p, 6);
+
+#ifdef WM_PRECALC_ALLOWEDCHANNEL
+    u16 enableChannel;
+    NVRAM_ReadDataBytes(NVRAM_CONFIG_ENABLECHANNEL_ADDRESS, 2, &enableChannel);
+
+    u16 allowedChannel = WMSP_GetAllowedChannel(enableChannel >> 1);
+
+    p = (u8 *)((u32)p + 6);
+
+    *((u16 *)p) = allowedChannel;
+#endif
 }
+
+#ifdef NVRAM_CONFIG_DATA_EX_VERSION
+static BOOL IsValidConfigEx(void)
+{
+    u8 ipl2_type;
+    NVRAM_ReadDataBytes(NVRAM_CONFIG_IPL2_TYPE_ADDRESS, NVRAM_CONFIG_IPL2_TYPE_SIZE, &ipl2_type);
+
+    if (ipl2_type == NVRAM_CONFIG_IPL2_TYPE_NORMAL) {
+        return FALSE;
+    }
+    if (ipl2_type & NVRAM_CONFIG_IPL2_TYPE_EX_MASK) {
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static u16 GetRomValidLanguage(void)
+{
+    u16 ret = 0;
+
+    if (OS_GetSystemWork()->rom_header[0x1D] == 0x80) {
+        ret |= 1 << NVRAM_CONFIG_LANG_CHINESE;
+    } else if (OS_GetSystemWork()->rom_header[0x1D] == 0x40) {
+        ret |= 1 << NVRAM_CONFIG_LANG_HANGUL;
+    }
+
+    return ret;
+}
+
+static s32 CheckCorrectNCDEx(NVRAMConfigEx *ncdsp)
+{
+    u16 i;
+    u16 calc_crc;
+    s32 crc_flag = 0;
+    u16 saveCount;
+
+    if (IsValidConfigEx()) {
+        u16 rom_valid_language = GetRomValidLanguage();
+
+        for (i = 0; i < 2; i++) {
+            calc_crc = SVC_GetCRC16(0xFFFF, &ncdsp[i].ncd, sizeof(NVRAMConfigData));
+            if (ncdsp[i].crc16 == calc_crc && ncdsp[i].saveCount < NVRAM_CONFIG_SAVE_COUNT_MAX) {
+                calc_crc = SVC_GetCRC16(0xFFFF, &ncdsp[i].ncd_ex, sizeof(NVRAMConfigDataEx));
+                if (ncdsp[i].crc16_ex == calc_crc && (1 << ncdsp[i].ncd_ex.language & ncdsp[i].ncd_ex.valid_language_bitmap)) {
+                    if (rom_valid_language & ncdsp[i].ncd_ex.valid_language_bitmap) {
+                        ncdsp[i].ncd.option.language = ncdsp[i].ncd_ex.language;
+                    }
+                    if (rom_valid_language & (1 << NVRAM_CONFIG_LANG_CHINESE) & ~ncdsp[i].ncd_ex.valid_language_bitmap) {
+                        return 3;
+                    }
+                    crc_flag |= (1 << i);
+                }
+            }
+        }
+    } else {
+        u16 rom_valid_language = GetRomValidLanguage();
+        if (rom_valid_language & (1 << NVRAM_CONFIG_LANG_CHINESE)) {
+            return 3;
+        }
+
+        for (i = 0; i < 2; i++) {
+            calc_crc = SVC_GetCRC16(0xFFFF, &ncdsp[i].ncd, sizeof(NVRAMConfigData));
+            if (ncdsp[i].crc16 == calc_crc && ncdsp[i].saveCount < NVRAM_CONFIG_SAVE_COUNT_MAX) {
+                crc_flag |= (1 << i);
+            }
+        }
+    }
+
+    switch (crc_flag) {
+    case 1:
+    case 2:
+        return crc_flag;
+    case 3:
+        saveCount = (u8)((ncdsp[0].saveCount + 1) & NVRAM_CONFIG_SAVE_COUNT_MASK);
+        if (saveCount == ncdsp[1].saveCount) {
+            return 2;
+        }
+        return 1;
+    }
+
+    return 0;
+}
+#else
+static s32 CheckCorrectNCD(NVRAMConfig *ncdsp)
+{
+    u16 i;
+    u16 calc_crc;
+    s32 crc_flag = 0;
+    u16 saveCount;
+
+    for (i = 0; i < 2; i++) {
+        calc_crc = SVC_GetCRC16(0xFFFF, &ncdsp[i].ncd, sizeof(NVRAMConfigData));
+
+        if (ncdsp[i].crc16 == calc_crc && ncdsp[i].saveCount < NVRAM_CONFIG_SAVE_COUNT_MAX) {
+            crc_flag |= (1 << i);
+        }
+    }
+
+    switch (crc_flag) {
+    case 1:
+    case 2:
+        return crc_flag;
+    case 3:
+        saveCount = (u8)((ncdsp[0].saveCount + 1) & NVRAM_CONFIG_SAVE_COUNT_MASK);
+        if (saveCount == ncdsp[1].saveCount) {
+            return 2;
+        }
+        return 1;
+    }
+
+    return 0;
+}
+#endif
+
+#ifndef SDK_TEG
+static void VBlankIntr(void)
+{
+    if (PM_IsAvailable()) {
+        PM_SelfBlinkProc();
+    }
+}
+#else
+static void VBlankIntr(void)
+{
+}
+#endif

@@ -8,7 +8,7 @@ extern "C" {
 #include <nitro/wm/common/wm.h>
 
 #ifdef SDK_ARM7
-    #include <nitro/wm/ARM7/wm_sp.h>
+    #include <nitro/wm/ARM7/wm.h>
 #else
     #include <nitro/wm/ARM9/wm_api.h>
 #endif

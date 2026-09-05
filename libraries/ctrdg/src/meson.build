@@ -15,5 +15,5 @@ libctrdg_srcs = files(
 
 libctrdg_arm7_srcs = files(
     'ctrdg.c',
-    'ctrdg_proc_arm7.c',
+    'ARM7/ctrdg.c',
 )

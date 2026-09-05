@@ -1,1 +1,1 @@
-libexi_srcs = files('exi.c')
+libexi_srcs = files('ARM7/gpio.c')

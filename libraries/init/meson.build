@@ -13,7 +13,7 @@ libinit_arm7 = library('init_arm7',
     c_pch: nitro_pch,
     include_directories: nitrosdk_includes,
     pic: false,
-    sources: [libinit_srcs, fx_const_h],
+    sources: [libinit_arm7_srcs, fx_const_h],
     dependencies: [nitrosdk_arm7_args_dep]
 )
 

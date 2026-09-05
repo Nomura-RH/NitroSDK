@@ -31,8 +31,8 @@ SECTIONS
 	SDK_STATIC_TEXT_START		=.;
 					#:::::::::: text/rodata
 					OBJECT(_start,*)
-					src_crt0.c.o (.text)
-					src_crt0.c.o (.rodata)
+					src_arm7_crt0.c.o (.text)
+					src_arm7_crt0.c.o (.rodata)
 
 					<FOREACH.STATIC.OBJECTS=.text>
 					<STATIC.OBJECT=.text:t>

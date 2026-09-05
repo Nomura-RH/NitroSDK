@@ -28,6 +28,9 @@ Autoload WRAM
     Library libcard_arm7.a
     Library libsubpsyscall_arm7.a
     Library libspi_arm7.a
+    Library libtp_arm7.a
+    Library libpm_arm7.a
+    Library libmic_arm7.a
     Library libctrdg_arm7.a
     Library libnvram_arm7.a
     Library librtc_arm7.a
