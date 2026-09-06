@@ -1,3 +1,5 @@
+subdir('ARM7')
+
 libwm_srcs = files(
     'wm_system.c',
     'wm_sync.c',
@@ -8,5 +10,3 @@ libwm_srcs = files(
     'wm_ks.c',
     'wm_etc.c'
 )
-
-libwm_arm7_srcs = files('wm_sp.c')

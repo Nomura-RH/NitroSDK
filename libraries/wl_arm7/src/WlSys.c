@@ -22,7 +22,6 @@
 
 void WlessLibReboot(void)
 {
-
     ClearTimeOut();
 
     WShutdown();

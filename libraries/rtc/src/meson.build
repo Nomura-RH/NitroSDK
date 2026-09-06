@@ -5,7 +5,7 @@ librtc_srcs = files(
 )
 
 librtc_arm7_srcs = files(
-    'control.c',
-    'instruction.c',
-    'gpio.c',
+    'ARM7/control.c',
+    'ARM7/instruction.c',
+    'ARM7/gpio.c',
 )

@@ -4,7 +4,7 @@
 #include "WlSys.h"
 #include "WlLib.h"
 
-#include "nvram_sp.h"
+#include <nitro/spi/ARM7/nvram.h>
 #include "Flash.h"
 
 u32 FLASH_VerifyCheckSum(u32 *pCrc)

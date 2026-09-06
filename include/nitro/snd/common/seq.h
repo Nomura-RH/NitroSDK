@@ -113,10 +113,8 @@ typedef struct SNDTrack {
     void SND_InvalidateSeq(const void * start, const void * end);
     void SND_InvalidateBank(const void * start, const void * end);
 
-    void SND_MmlPrintEnable(BOOL enble);
-#endif
+    void SND_MmlPrintEnable(BOOL enable);
 
-#ifdef SDK_ARM7
     void SNDi_SetPlayerParam(int playerNo, u32 offset, u32 data, int size);
     void SNDi_SetTrackParam(int playerNo, u32 trackBitMask, u32 offset, u32 data, int size);
 #endif

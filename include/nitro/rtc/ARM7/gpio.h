@@ -1,17 +1,59 @@
 #ifndef NITRO_RTC_ARM7_GPIO_H_
 #define NITRO_RTC_ARM7_GPIO_H_
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
-void RTCi_GpioStart(void);
-void RTCi_GpioSendCommand(u32 param1, u32 param2);
-void RTCi_GpioSendData(void *param1, u32 param2);
-void RTCi_GpioReceiveData(void *param1, u32 param2);
-void RTCi_GpioEnd(void);
+#define RTC_GPIO_DIRECTION_MASK 0x70
+#define RTC_GPIO_VALUE_MASK     0x07
+#define RTC_GPIO_MASK           (RTC_GPIO_DIRECTION_MASK | RTC_GPIO_VALUE_MASK)
 
-#ifdef  __cplusplus
+#define RTC_GPIO_DIRECTION_SEND 0x70
+#define RTC_GPIO_DIRECTION_RECV 0x60
+
+#define RTC_GPIO_CS_MASK    0x4
+#define RTC_GPIO_CS_LO      0x0
+#define RTC_GPIO_CS_HI      0x4
+#define RTC_GPIO_CLOCK_MASK 0x2
+#define RTC_GPIO_CLOCK_LO   0x0
+#define RTC_GPIO_CLOCK_HI   0x2
+#define RTC_GPIO_DATA_MASK  0x1
+#define RTC_GPIO_DATA_LO    0x0
+#define RTC_GPIO_DATA_HI    0x1
+
+#define RTC_SEC_TO_CPUCLOCK(s)       (HW_CPU_CLOCK * (s))
+#define RTC_MILLISEC_TO_CPUCLOCK(ms) (HW_CPU_CLOCK * (ms) / 1000)
+#define RTC_MICROSEC_TO_CPUCLOCK(us) (HW_CPU_CLOCK * (us) / 1000000)
+#define RTC_NANOSEC_TO_CPUCLOCK(ns)  (HW_CPU_CLOCK * (ns) / 1000000000)
+
+#ifdef RTC_CODE_IN_MAIN_MEMORY
+#define RTC_MIN_LOOP_CLOCK 17
+#else
+#define RTC_MIN_LOOP_CLOCK 4
+#endif
+
+#ifdef RTC_VDD_LESS_THAN_3V
+#define RTC_WAIT_LOOP_COUNT_TDS  ((RTC_MICROSEC_TO_CPUCLOCK(1) / RTC_MIN_LOOP_CLOCK) + 1)
+#define RTC_WAIT_LOOP_COUNT_TCSH ((RTC_MICROSEC_TO_CPUCLOCK(1) / RTC_MIN_LOOP_CLOCK) + 1)
+#define RTC_WAIT_LOOP_COUNT_TCSS ((RTC_MICROSEC_TO_CPUCLOCK(1) / RTC_MIN_LOOP_CLOCK) + 1)
+#define RTC_WAIT_LOOP_COUNT_TDH  ((RTC_MICROSEC_TO_CPUCLOCK(1) / RTC_MIN_LOOP_CLOCK) + 1)
+#define RTC_WAIT_LOOP_COUNT_TSCK ((RTC_MICROSEC_TO_CPUCLOCK(5) / RTC_MIN_LOOP_CLOCK) + 1)
+#else
+#define RTC_WAIT_LOOP_COUNT_TDS  ((RTC_NANOSEC_TO_CPUCLOCK(200) / RTC_MIN_LOOP_CLOCK) + 1)
+#define RTC_WAIT_LOOP_COUNT_TCSH ((RTC_NANOSEC_TO_CPUCLOCK(200) / RTC_MIN_LOOP_CLOCK) + 1)
+#define RTC_WAIT_LOOP_COUNT_TCSS ((RTC_NANOSEC_TO_CPUCLOCK(200) / RTC_MIN_LOOP_CLOCK) + 1)
+#define RTC_WAIT_LOOP_COUNT_TDH  ((RTC_NANOSEC_TO_CPUCLOCK(200) / RTC_MIN_LOOP_CLOCK) + 1)
+#define RTC_WAIT_LOOP_COUNT_TSCK ((RTC_MICROSEC_TO_CPUCLOCK(1) / RTC_MIN_LOOP_CLOCK) + 1)
+#endif
+
+void RTCi_GpioStart(void);
+void RTCi_GpioEnd(void);
+void RTCi_GpioSendCommand(u16 command, u16 parameter);
+void RTCi_GpioSendData(const void *pData, u32 size);
+void RTCi_GpioReceiveData(void *pData, u32 size);
+
+#ifdef __cplusplus
 }
 #endif
 

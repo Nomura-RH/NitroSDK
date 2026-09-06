@@ -8,7 +8,7 @@
 #include <nitro/ctrdg/ARM9/ctrdg_task.h>
 
 #ifdef SDK_ARM7
-    #include <nitro/ctrdg/ARM7/ctrdg_sp.h>
+    #include <nitro/ctrdg/ARM7/ctrdg.h>
 #endif
 
 #endif

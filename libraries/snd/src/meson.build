@@ -10,13 +10,14 @@ libsnd_srcs = files(
 )
 
 libsnd_arm7_srcs = files(
-    'snd_global.c',
-    'snd_channel.c',
+    'ARM7/snd_global.c',
+    'ARM7/snd_channel.c',
     'snd_util.c',
     'snd_main.c',
-    'snd_capture.c',
-    'snd_exchannel.c',
-    'snd_seq.c',
+    'ARM7/snd_capture.c',
+    'ARM7/snd_exchannel.c',
+    'ARM7/snd_seq.c',
+    'ARM7/snd_midiplayer.c',
     'snd_bank.c',
     'snd_work.c',
     'snd_alarm.c',

@@ -54,7 +54,7 @@ libos_arm7_srcs = files(
     'os_system.c',
     'os_profile.c',
     'os_reset.c',
-    'os_terminate_proc.c',
+    'ARM7/os_terminate.c',
     'os_ownerInfo.c',
     'os_entropy.c',
 )

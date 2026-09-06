@@ -12,6 +12,6 @@ libcard_arm7_srcs = files(
     'card_spi.c',
     'card_backup.c',
     'card_rom.c',
-    'card_request_arm7.c',
-    'card_pullOut_arm7.c',
+    'ARM7/card_request.c',
+    'ARM7/card_pullOut.c',
 )

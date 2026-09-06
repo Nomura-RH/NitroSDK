@@ -6,49 +6,49 @@ extern "C" {
 #endif
 
 #include <nitro/misc.h>
-#include <nitro/types.h>
+#include <nitro/pxi/common/fifo.h>
 #include <nitro/spi/common/pm_common.h>
 #include <nitro/spi/common/type.h>
-#include <nitro/pxi/common/fifo.h>
+#include <nitro/types.h>
 
-typedef struct PMiWork {
-    u16 unk_0[0x10];
-    u32 unk_20;
-    u32 unk_24;
-    u32 unk_28;
-} PMiWork;
+#include "spi.h"
 
-typedef struct PMiBlinkPatternData {
-    u32 unk_0;
-    u32 unk_4;
-    u16 unk_8;
-    u16 unk_a;
-} PMiBlinkPatternData;
+typedef enum {
+    PM_STATUS_READY = 0,
+    PM_STATUS_START_SLEEP,
+    PM_STATUS_UTILITY,
+    PM_STATUS_READ_REGISTER,
+    PM_STATUS_WRITE_REGISTER
+} PMStatus;
 
-extern u16 PMi_KeyPattern;
-extern u16 PMi_TriggerBL;
+typedef struct PMWork {
+    u16 command[SPI_PXI_CONTINUOUS_PACKET_MAX];
+    PMStatus status;
+    u32 param;
+    u32 regNumber;
+} PMWork;
+
 extern BOOL PMi_Initialized;
-extern PMiWork PMi_Work;
-extern PMLEDPattern PMi_BlinkPatternNo;
+static inline BOOL PM_IsAvailable(void)
+{
+    return PMi_Initialized;
+}
 
-extern PMLEDStatus PMi_LEDStatus;
-extern PMiBlinkPatternData PMi_BlinkPatternData[];
+void PM_Init(void);
+void PM_ExecuteProcess(SPIEntry *entry);
+void PM_AnalyzeCommand(u32 data);
 
 void PM_SetLEDPattern(PMLEDPattern pattern);
 PMLEDPattern PM_GetLEDPattern(void);
-u32 PMi_SetLED(PMLEDStatus status);
-void PM_Init(void);
-void PM_ExecuteProcess(SPIMessage *param1);
-void PM_AnalyzeCommand(u32 data);
+void PMi_SetLED(PMLEDStatus status);
 
-// the widths of these types might not be accurate...
-u8 PMi_GetRegister(u8 param1);
-void PMi_SetRegister(u16 param1, u32 param2);
+u8 PMi_GetRegister(u16 reg);
+void PMi_SetRegister(u16 reg, u8 data);
 void PMi_ResetControl(u8 ctrl);
 void PMi_SetControl(u8 ctrl);
-u16 PMi_DoSleep(void);
-void PMi_SwitchUtilityProc(u32 param1);
-void PMi_SendPxiCommand(u32 param1, u32 param2, u16 param3);
+void PMi_DoSleep(void);
+void PMi_SwitchUtilityProc(u32 procNumber);
+void PMi_SendPxiCommand(u16 command, u16 addr, u16 data);
 void PM_SelfBlinkProc(void);
 
 #ifdef __cplusplus
