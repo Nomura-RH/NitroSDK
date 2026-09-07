@@ -36,6 +36,20 @@ else
 c_args = []
 endif
 
+mwrap_libos = get_option('mwrap_libos')
+libos_c_args = c_args
+if mwrap_libos != 'default'
+    libos_c_args += ['-wrap:sdk', mwrap_libos]
+    libos_c_args += ['-USP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS']
+endif
+
+mwrap_libcard = get_option('mwrap_libcard')
+libcard_c_args = c_args
+if mwrap_libcard != 'default'
+    libcard_c_args += ['-wrap:sdk', mwrap_libcard]
+    libcard_c_args += ['-USP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS']
+endif
+
 mwrap_ver = get_option('mwrap_ver')
 if mwrap_ver != 'default'
     c_args += ['-wrap:ver', mwrap_ver]
