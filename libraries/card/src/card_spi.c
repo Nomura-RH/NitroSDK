@@ -19,6 +19,11 @@
 #define MCCNT0_MASTER_ON       0x8000
 #define MCCNT0_MASTER_OFF      0x0000
 
+#ifdef HG_CARD_SPI
+#define CARD_BACKUP_TYPE_VENDOR_IRC 0xFF
+static u8 IRC_BACKUP_WAIT = 50;
+#endif
+
 typedef struct {
 	u32 rest_comm;
 	u32 src;
@@ -114,23 +119,80 @@ static BOOL CARDi_WaitPrevCommand (void)
 	return TRUE;
 }
 
-void CARDi_CommArray (const void *src, void *dst, u32 len, void (*func)(CARDiParam *))
+#ifdef HG_CARD_SPI
+static BOOL need_command = TRUE;
+#endif
+
+void CARDi_CommArray(const void *src, void *dst, u32 len, void (*func) (CARDiParam *))
 {
-	CARDiParam *const p = &cardi_param;
-	p->src = (u32)src;
-	p->dst = (u32)dst;
-	CARDi_EnableSpi(CSPI_CONTINUOUS_ON);
-	for (; len > 0; --len) {
-		if (!--p->rest_comm) {
+    CARDiParam *const p = &cardi_param;
+    p->src = (u32)src;
+    p->dst = (u32)dst;
+
+#ifdef HG_CARD_SPI
+    CARDi_EnableSpi(CSPI_CONTINUOUS_ON | MCCNT0_SPI_CLK_4M);
+#else
+    CARDi_EnableSpi(CSPI_CONTINUOUS_ON);
+#endif
+
+    for (; len > 0; --len)
+    {
+    #ifdef HG_CARD_SPI
+        if(need_command)
+        {
+            CARDiCommandArg *const arg = cardi_common.cmd;
+            BOOL isIRC = ((u8)((arg->type >> CARD_BACKUP_TYPE_VENDER_SHIFT) & CARD_BACKUP_TYPE_VENDER_MASK) == CARD_BACKUP_TYPE_VENDOR_IRC) ? TRUE : FALSE;
+            if(isIRC)
+            {
+                vu16 dummy_read;
+
+                OSTick tick = OS_GetTick();
+                while (OS_TicksToMicroSeconds(OS_GetTick() - tick) < IRC_BACKUP_WAIT) {
+                }
+                CARDi_EnableSpi(CSPI_CONTINUOUS_ON | MCCNT0_SPI_CLK_1M);
+                CARDi_WaitBusy();
+                reg_MI_MCD0 = 0x00;
+                CARDi_WaitBusy();
+                dummy_read = reg_MI_MCD0;
+                need_command = FALSE;
+                tick = OS_GetTick();
+                while (OS_TicksToMicroSeconds(OS_GetTick() - tick) < IRC_BACKUP_WAIT) {
+                }
+            }
+        }
+    #endif
+        if (!--p->rest_comm)
+        {
+        #ifdef HG_CARD_SPI
+            CARDi_EnableSpi(CSPI_CONTINUOUS_OFF | MCCNT0_SPI_CLK_4M);
+            need_command = TRUE;
+        #else
 			CARDi_EnableSpi(CSPI_CONTINUOUS_OFF);
-		}
-		CARDi_WaitBusy();
-		(*func)(p);
-	}
-	if (!p->rest_comm) {
-		reg_MI_MCCNT0 = (u16)(MCCNT0_MASTER_OFF | MCCNT0_INT_OFF);
-	}
+        #endif
+        } 
+    #ifdef HG_CARD_SPI
+        else {
+            CARDi_EnableSpi(CSPI_CONTINUOUS_ON | MCCNT0_SPI_CLK_4M);
+        }
+    #endif
+        CARDi_WaitBusy();
+        (*func) (p);
+    #ifdef HG_CARD_SPI
+        if (!p->rest_comm) {
+            break;
+        }
+    #endif
+    }
+    if (!p->rest_comm)
+    {
+    #ifdef HG_CARD_SPI
+        reg_MI_MCCNT0 = (u16)(MCCNT0_MASTER_OFF | MCCNT0_INT_OFF | MCCNT0_SPI_CLK_4M);
+    #else
+        reg_MI_MCCNT0 = (u16)(MCCNT0_MASTER_OFF | MCCNT0_INT_OFF);
+    #endif
+    }
 }
+
 
 void CARDi_CommReadCore (CARDiParam *p)
 {
@@ -211,24 +273,14 @@ void CARDi_InitStatusRegister (void)
 
 void CARDi_IdentifyBackupCore(CARDBackupType type)
 {
-    /*
-     * Saves the obtained parameter in CARDiCommandArg.
-     * Ultimately this is completed by eliminating the table.
-     */
     {
         CARDiCommandArg *const p = cardi_common.cmd;
 
-        /* First, clear all parameters and set to NOT_USE state. */
         MI_CpuFill8(&p->spec, 0, sizeof(p->spec));
         p->type = type;
         p->spec.caps = (CARD_BACKUP_CAPS_AVAILABLE | CARD_BACKUP_CAPS_READ_STATUS);
         if (type != CARD_BACKUP_TYPE_NOT_USE)
         {
-            /*
-             * Device type, total capacity and vendor can be obtained from type.
-             * The vendor number is 0 except for cases where the same type was adopted by several manufacturers, and there was a need to make a distinction because of defects or the like.
-             * 
-             */
             const u32 size = (u32)(1 << ((type >> CARD_BACKUP_TYPE_SIZEBIT_SHIFT) &
                                          CARD_BACKUP_TYPE_SIZEBIT_MASK));
             const int device =
@@ -245,30 +297,32 @@ void CARDi_IdentifyBackupCore(CARDBackupType type)
                 {
                 default:
                     goto invalid_type;
-                case 0x000200:        // CARD_BACKUP_TYPE_EEPROM_4KBITS
+                case 0x000200:
                     p->spec.page_size = 0x10;
                     p->spec.addr_width = 1;
                     p->spec.program_page = 5;
                     p->spec.initial_status = 0xF0;
                     break;
-                case 0x002000:        // CARD_BACKUP_TYPE_EEPROM_64KBITS
+                case 0x002000:
                     p->spec.page_size = 0x0020;
                     p->spec.addr_width = 2;
                     p->spec.program_page = 5;
                     p->spec.initial_status = 0x00;
                     break;
-                case 0x010000:        // CARD_BACKUP_TYPE_EEPROM_512KBITS
+                case 0x010000:
                     p->spec.page_size = 0x0080;
                     p->spec.addr_width = 2;
                     p->spec.program_page = 10;
                     p->spec.initial_status = 0x00;
                     break;
-				case 0x020000:	      // CARD_BACKUP_TYPE_EEPROM_1MBITS
+            #ifdef HG_CARD_SPI
+				case 0x020000:
 					p->spec.page_size = 0x0100;
 					p->spec.addr_width = 3;
 					p->spec.program_page = 5;
                     p->spec.initial_status = 0x00;
 					break;
+            #endif
                 }
                 p->spec.sect_size = p->spec.page_size;
                 p->spec.caps |= CARD_BACKUP_CAPS_READ;
@@ -282,9 +336,9 @@ void CARDi_IdentifyBackupCore(CARDBackupType type)
                 {
                 default:
                     goto invalid_type;
-                case 0x040000:        // CARD_BACKUP_TYPE_FLASH_2MBITS
-                case 0x080000:        // CARD_BACKUP_TYPE_FLASH_4MBITS
-                case 0x100000:        // CARD_BACKUP_TYPE_FLASH_8MBITS
+                case 0x040000:
+                case 0x080000:
+                case 0x100000:
                     p->spec.write_page = 25;
                     p->spec.write_page_total = 300;
                     p->spec.erase_page = 300;
@@ -292,7 +346,7 @@ void CARDi_IdentifyBackupCore(CARDBackupType type)
                     p->spec.caps |= CARD_BACKUP_CAPS_WRITE;
                     p->spec.caps |= CARD_BACKUP_CAPS_ERASE_PAGE;
                     break;
-                case 0x200000:        // CARD_BACKUP_TYPE_FLASH_16MBITS
+                case 0x200000:
                     p->spec.write_page = 23;
                     p->spec.write_page_total = 300;
                     p->spec.erase_sector = 500;
@@ -305,7 +359,7 @@ void CARDi_IdentifyBackupCore(CARDBackupType type)
                     p->spec.caps |= CARD_BACKUP_CAPS_ERASE_CHIP;
                     p->spec.caps |= CARD_BACKUP_CAPS_WRITE_STATUS;
                     break;
-                case 0x400000:        // CARD_BACKUP_TYPE_FLASH_32MBITS
+                case 0x400000:
                     p->spec.erase_sector = 600;
                     p->spec.erase_sector_total = 3000;
                     p->spec.erase_subsector = 70;
@@ -319,7 +373,7 @@ void CARDi_IdentifyBackupCore(CARDBackupType type)
                     p->spec.caps |= CARD_BACKUP_CAPS_WRITE_STATUS;
                     break;
                 case 0x800000:
-                    if (vender == 0)  // CARD_BACKUP_TYPE_FLASH_64MBITS
+                    if (vender == 0)
                     {
                         p->spec.erase_sector = 1000;
                         p->spec.erase_sector_total = 3000;
@@ -329,7 +383,7 @@ void CARDi_IdentifyBackupCore(CARDBackupType type)
                         p->spec.caps |= CARD_BACKUP_CAPS_ERASE_CHIP;
                         p->spec.caps |= CARD_BACKUP_CAPS_WRITE_STATUS;
                     }
-                    else if (vender == 1)   // CARD_BACKUP_TYPE_FLASH_64MBITS_EX
+                    else if (vender == 1)
                     {
                         p->spec.erase_sector = 1000;
                         p->spec.erase_sector_total = 3000;
@@ -356,8 +410,8 @@ void CARDi_IdentifyBackupCore(CARDBackupType type)
                 {
                 default:
                     goto invalid_type;
-                case 0x002000:        // #CARD_BACKUP_TYPE_FRAM_64KBITS
-                case 0x008000:        // #CARD_BACKUP_TYPE_FRAM_256KBITS
+                case 0x002000:
+                case 0x008000:
                     break;
                 }
                 p->spec.page_size = size;

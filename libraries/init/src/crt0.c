@@ -55,7 +55,7 @@ SDK_WEAK_SYMBOL asm void _start(void)
     sub r0, r0, #HW_SVC_STACK_SIZE
     sub sp, r0, #4
     tst sp, #4
-#if TRUE
+#ifdef SP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS
 	beq @do_sub
     b @skip_sub
 @do_sub:
@@ -92,7 +92,7 @@ SDK_WEAK_SYMBOL asm void _start(void)
     mov r0, #0
 @1:
     cmp r1, r2
-#if TRUE
+#ifdef SP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS
 	bcc @do_str
     b @skip_str
 @do_str:
@@ -125,7 +125,7 @@ SDK_WEAK_SYMBOL asm void _start(void)
     ldr r1, = NitroMain
     ldr lr, = HW_RESET_VECTOR
     tst sp, #4
-#if TRUE
+#ifdef SP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS
 	bne @subne1
     b @subne2
 @subne1:
@@ -142,7 +142,7 @@ static asm void INITi_CpuClear32(register u32 data, register void *destp, regist
 	add r12, r1, r2
 @20:
 	cmp r1, r12
-#if TRUE
+#ifdef SP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS
 	blt @stmltia1
     b @stmltia2
 @stmltia1:
@@ -264,7 +264,7 @@ static asm void do_autoload (void)
 	mov dest, dest_begin
 @1:
 	cmp dest, dest_end
-#if TRUE
+#ifdef SP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS
 	bmi @ldrmi1
     b @ldrmi2
 @ldrmi1:
@@ -285,7 +285,7 @@ static asm void do_autoload (void)
 	mov tmp, #0
 @3:
 	cmp dest, dest_end
-#if TRUE
+#ifdef SP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS
 	bcc @strcc1
     b @strcc2
 @strcc1:
