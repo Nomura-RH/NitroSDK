@@ -19,9 +19,9 @@ u16 MIC_ExecSampling8(void)
     MIC_SPIChangeMode(SPI_TRANSMODE_1BYTE);
     temp |= SPI_DummyWaitReceive();
 
-#ifdef SDK_PATCH3
     temp = (temp & MIC_S8_VALID_BIT_MASK) >> MIC_S8_VALID_BIT_SHIFT;
     
+#ifdef SDK_PATCH3
     sam8 += temp;
     counter8++;
     if (counter8 >= 0x1000) {
