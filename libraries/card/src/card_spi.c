@@ -19,11 +19,6 @@
 #define MCCNT0_MASTER_ON       0x8000
 #define MCCNT0_MASTER_OFF      0x0000
 
-#ifdef HG_CARD_SPI
-#define CARD_BACKUP_TYPE_VENDOR_IRC 0xFF
-static u8 IRC_BACKUP_WAIT = 50;
-#endif
-
 typedef struct {
 	u32 rest_comm;
 	u32 src;
@@ -119,7 +114,9 @@ static BOOL CARDi_WaitPrevCommand (void)
 	return TRUE;
 }
 
-#ifdef HG_CARD_SPI
+#ifdef IRC_SUPPORT
+#define CARD_BACKUP_TYPE_VENDOR_IRC 0xFF
+static u8 IRC_BACKUP_WAIT = 50;
 static BOOL need_command = TRUE;
 #endif
 
@@ -129,7 +126,7 @@ void CARDi_CommArray(const void *src, void *dst, u32 len, void (*func) (CARDiPar
     p->src = (u32)src;
     p->dst = (u32)dst;
 
-#ifdef HG_CARD_SPI
+#ifdef IRC_SUPPORT
     CARDi_EnableSpi(CSPI_CONTINUOUS_ON | MCCNT0_SPI_CLK_4M);
 #else
     CARDi_EnableSpi(CSPI_CONTINUOUS_ON);
@@ -137,7 +134,7 @@ void CARDi_CommArray(const void *src, void *dst, u32 len, void (*func) (CARDiPar
 
     for (; len > 0; --len)
     {
-    #ifdef HG_CARD_SPI
+    #ifdef IRC_SUPPORT
         if(need_command)
         {
             CARDiCommandArg *const arg = cardi_common.cmd;
@@ -163,21 +160,21 @@ void CARDi_CommArray(const void *src, void *dst, u32 len, void (*func) (CARDiPar
     #endif
         if (!--p->rest_comm)
         {
-        #ifdef HG_CARD_SPI
+        #ifdef IRC_SUPPORT
             CARDi_EnableSpi(CSPI_CONTINUOUS_OFF | MCCNT0_SPI_CLK_4M);
             need_command = TRUE;
         #else
 			CARDi_EnableSpi(CSPI_CONTINUOUS_OFF);
         #endif
         } 
-    #ifdef HG_CARD_SPI
+    #ifdef IRC_SUPPORT
         else {
             CARDi_EnableSpi(CSPI_CONTINUOUS_ON | MCCNT0_SPI_CLK_4M);
         }
     #endif
         CARDi_WaitBusy();
         (*func) (p);
-    #ifdef HG_CARD_SPI
+    #ifdef IRC_SUPPORT
         if (!p->rest_comm) {
             break;
         }
@@ -185,7 +182,7 @@ void CARDi_CommArray(const void *src, void *dst, u32 len, void (*func) (CARDiPar
     }
     if (!p->rest_comm)
     {
-    #ifdef HG_CARD_SPI
+    #ifdef IRC_SUPPORT
         reg_MI_MCCNT0 = (u16)(MCCNT0_MASTER_OFF | MCCNT0_INT_OFF | MCCNT0_SPI_CLK_4M);
     #else
         reg_MI_MCCNT0 = (u16)(MCCNT0_MASTER_OFF | MCCNT0_INT_OFF);
@@ -315,7 +312,7 @@ void CARDi_IdentifyBackupCore(CARDBackupType type)
                     p->spec.program_page = 10;
                     p->spec.initial_status = 0x00;
                     break;
-            #ifdef HG_CARD_SPI
+            #ifdef SDK_PATCH3
 				case 0x020000:
 					p->spec.page_size = 0x0100;
 					p->spec.addr_width = 3;

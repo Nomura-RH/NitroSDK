@@ -36,20 +36,6 @@ else
 c_args = []
 endif
 
-mwrap_libos = get_option('mwrap_libos')
-libos_c_args = c_args
-if mwrap_libos != 'default'
-    libos_c_args += ['-wrap:sdk', mwrap_libos]
-    libos_c_args += ['-USP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS']
-endif
-
-mwrap_libcard = get_option('mwrap_libcard')
-libcard_c_args = c_args
-if mwrap_libcard != 'default'
-    libcard_c_args += ['-wrap:sdk', mwrap_libcard]
-    libcard_c_args += ['-USP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS']
-endif
-
 mwrap_ver = get_option('mwrap_ver')
 if mwrap_ver != 'default'
     c_args += ['-wrap:ver', mwrap_ver]
@@ -68,8 +54,8 @@ if get_option('patch3')
     c_args += '-DSDK_PATCH3'
 endif
 
-if get_option('hg_card_spi')
-    c_args += '-DHG_CARD_SPI'
+if get_option('irc_support')
+    c_args += '-DIRC_SUPPORT'
 endif
 
 add_project_arguments(c_args,
@@ -109,8 +95,8 @@ if get_option('patch3')
     nitrosdk_arm7_args += '-DSDK_PATCH3'
 endif
 
-if get_option('hg_card_spi')
-    nitrosdk_arm7_args += '-DHG_CARD_SPI'
+if get_option('irc_support')
+    nitrosdk_arm7_args += '-DIRC_SUPPORT'
 endif
 
 nitrosdk_arm7_args_dep = declare_dependency(
