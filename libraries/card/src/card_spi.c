@@ -114,23 +114,82 @@ static BOOL CARDi_WaitPrevCommand (void)
 	return TRUE;
 }
 
-void CARDi_CommArray (const void *src, void *dst, u32 len, void (*func)(CARDiParam *))
+#ifdef IRC_SUPPORT
+#define CARD_BACKUP_TYPE_VENDOR_IRC 0xFF
+static u8 IRC_BACKUP_WAIT = 50;
+static BOOL need_command = TRUE;
+#endif
+
+void CARDi_CommArray(const void *src, void *dst, u32 len, void (*func) (CARDiParam *))
 {
-	CARDiParam *const p = &cardi_param;
-	p->src = (u32)src;
-	p->dst = (u32)dst;
-	CARDi_EnableSpi(CSPI_CONTINUOUS_ON);
-	for (; len > 0; --len) {
-		if (!--p->rest_comm) {
+    CARDiParam *const p = &cardi_param;
+    p->src = (u32)src;
+    p->dst = (u32)dst;
+
+#ifdef IRC_SUPPORT
+    CARDi_EnableSpi(CSPI_CONTINUOUS_ON | MCCNT0_SPI_CLK_4M);
+#else
+    CARDi_EnableSpi(CSPI_CONTINUOUS_ON);
+#endif
+
+    for (; len > 0; --len)
+    {
+    #ifdef IRC_SUPPORT
+        if(need_command)
+        {
+            CARDiCommandArg *const arg = cardi_common.cmd;
+            BOOL isIRC = ((u8)((arg->type >> CARD_BACKUP_TYPE_VENDER_SHIFT) & CARD_BACKUP_TYPE_VENDER_MASK) == CARD_BACKUP_TYPE_VENDOR_IRC) ? TRUE : FALSE;
+            if(isIRC)
+            {
+                vu16 dummy_read;
+
+                OSTick tick = OS_GetTick();
+                while (OS_TicksToMicroSeconds(OS_GetTick() - tick) < IRC_BACKUP_WAIT) {
+                }
+                CARDi_EnableSpi(CSPI_CONTINUOUS_ON | MCCNT0_SPI_CLK_1M);
+                CARDi_WaitBusy();
+                reg_MI_MCD0 = 0x00;
+                CARDi_WaitBusy();
+                dummy_read = reg_MI_MCD0;
+                need_command = FALSE;
+                tick = OS_GetTick();
+                while (OS_TicksToMicroSeconds(OS_GetTick() - tick) < IRC_BACKUP_WAIT) {
+                }
+            }
+        }
+    #endif
+        if (!--p->rest_comm)
+        {
+        #ifdef IRC_SUPPORT
+            CARDi_EnableSpi(CSPI_CONTINUOUS_OFF | MCCNT0_SPI_CLK_4M);
+            need_command = TRUE;
+        #else
 			CARDi_EnableSpi(CSPI_CONTINUOUS_OFF);
-		}
-		CARDi_WaitBusy();
-		(*func)(p);
-	}
-	if (!p->rest_comm) {
-		reg_MI_MCCNT0 = (u16)(MCCNT0_MASTER_OFF | MCCNT0_INT_OFF);
-	}
+        #endif
+        } 
+    #ifdef IRC_SUPPORT
+        else {
+            CARDi_EnableSpi(CSPI_CONTINUOUS_ON | MCCNT0_SPI_CLK_4M);
+        }
+    #endif
+        CARDi_WaitBusy();
+        (*func) (p);
+    #ifdef IRC_SUPPORT
+        if (!p->rest_comm) {
+            break;
+        }
+    #endif
+    }
+    if (!p->rest_comm)
+    {
+    #ifdef IRC_SUPPORT
+        reg_MI_MCCNT0 = (u16)(MCCNT0_MASTER_OFF | MCCNT0_INT_OFF | MCCNT0_SPI_CLK_4M);
+    #else
+        reg_MI_MCCNT0 = (u16)(MCCNT0_MASTER_OFF | MCCNT0_INT_OFF);
+    #endif
+    }
 }
+
 
 void CARDi_CommReadCore (CARDiParam *p)
 {
@@ -209,144 +268,168 @@ void CARDi_InitStatusRegister (void)
 	}
 }
 
-void CARDi_IdentifyBackupCore (CARDBackupType type)
+void CARDi_IdentifyBackupCore(CARDBackupType type)
 {
-	{
-		CARDiCommandArg *const p = cardi_common.cmd;
+    {
+        CARDiCommandArg *const p = cardi_common.cmd;
 
-		MI_CpuFill8(&p->spec, 0, sizeof(p->spec));
-		p->type = type;
-		p->spec.caps = (CARD_BACKUP_CAPS_AVAILABLE | CARD_BACKUP_CAPS_READ_STATUS);
-		if (type != CARD_BACKUP_TYPE_NOT_USE) {
-			const u32 size = (u32)(1 << ((type >> CARD_BACKUP_TYPE_SIZEBIT_SHIFT) & CARD_BACKUP_TYPE_SIZEBIT_MASK));
-			const int device = ((type >> CARD_BACKUP_TYPE_DEVICE_SHIFT) & CARD_BACKUP_TYPE_DEVICE_MASK);
-			const int vender = ((type >> CARD_BACKUP_TYPE_VENDER_SHIFT) & CARD_BACKUP_TYPE_VENDER_MASK);
+        MI_CpuFill8(&p->spec, 0, sizeof(p->spec));
+        p->type = type;
+        p->spec.caps = (CARD_BACKUP_CAPS_AVAILABLE | CARD_BACKUP_CAPS_READ_STATUS);
+        if (type != CARD_BACKUP_TYPE_NOT_USE)
+        {
+            const u32 size = (u32)(1 << ((type >> CARD_BACKUP_TYPE_SIZEBIT_SHIFT) &
+                                         CARD_BACKUP_TYPE_SIZEBIT_MASK));
+            const int device =
+                ((type >> CARD_BACKUP_TYPE_DEVICE_SHIFT) & CARD_BACKUP_TYPE_DEVICE_MASK);
+            const int vender =
+                ((type >> CARD_BACKUP_TYPE_VENDER_SHIFT) & CARD_BACKUP_TYPE_VENDER_MASK);
 
-			p->spec.total_size = size;
-
-			p->spec.initial_status = 0xFF;
-			if (device == CARD_BACKUP_TYPE_DEVICE_EEPROM) {
-				switch (size) {
-				default:
-					goto invalid_type;
-				case 0x000200:
-					p->spec.page_size = 0x10;
-					p->spec.addr_width = 1;
+            p->spec.total_size = size;
+            /* Use 0xFF if the status register does not need to be corrected. (This is usually the case.) */
+            p->spec.initial_status = 0xFF;
+            if (device == CARD_BACKUP_TYPE_DEVICE_EEPROM)
+            {
+                switch (size)
+                {
+                default:
+                    goto invalid_type;
+                case 0x000200:
+                    p->spec.page_size = 0x10;
+                    p->spec.addr_width = 1;
+                    p->spec.program_page = 5;
+                    p->spec.initial_status = 0xF0;
+                    break;
+                case 0x002000:
+                    p->spec.page_size = 0x0020;
+                    p->spec.addr_width = 2;
+                    p->spec.program_page = 5;
+                    p->spec.initial_status = 0x00;
+                    break;
+                case 0x010000:
+                    p->spec.page_size = 0x0080;
+                    p->spec.addr_width = 2;
+                    p->spec.program_page = 10;
+                    p->spec.initial_status = 0x00;
+                    break;
+            #ifdef SDK_PATCH3
+				case 0x020000:
+					p->spec.page_size = 0x0100;
+					p->spec.addr_width = 3;
 					p->spec.program_page = 5;
-					p->spec.initial_status = 0xF0;
+                    p->spec.initial_status = 0x00;
 					break;
-				case 0x002000:
-					p->spec.page_size = 0x0020;
-					p->spec.addr_width = 2;
-					p->spec.program_page = 5;
-					p->spec.initial_status = 0x00;
-					break;
-				case 0x010000:
-					p->spec.page_size = 0x0080;
-					p->spec.addr_width = 2;
-					p->spec.program_page = 10;
-					p->spec.initial_status = 0x00;
-					break;
-
-				}
-				p->spec.sect_size = p->spec.page_size;
-				p->spec.caps |= CARD_BACKUP_CAPS_READ;
-				p->spec.caps |= CARD_BACKUP_CAPS_PROGRAM;
-				p->spec.caps |= CARD_BACKUP_CAPS_VERIFY;
-				p->spec.caps |= CARD_BACKUP_CAPS_WRITE_STATUS;
-			} else if (device == CARD_BACKUP_TYPE_DEVICE_FLASH) {
-				switch (size) {
-				default:
-					goto invalid_type;
-				case 0x040000:
-				case 0x080000:
-				case 0x100000:
-					p->spec.write_page = 25;
-					p->spec.write_page_total = 300;
-					p->spec.erase_page = 300;
-					p->spec.erase_sector = 5000;
-					p->spec.caps |= CARD_BACKUP_CAPS_WRITE;
-					p->spec.caps |= CARD_BACKUP_CAPS_ERASE_PAGE;
-					break;
-				case 0x200000:
-					p->spec.write_page = 23;
-					p->spec.write_page_total = 300;
-					p->spec.erase_sector = 500;
-					p->spec.erase_sector_total = 5000;
-					p->spec.erase_chip = 10000;
-					p->spec.erase_chip_total = 60000;
-					p->spec.initial_status = 0x00;
-					p->spec.caps |= CARD_BACKUP_CAPS_WRITE;
-					p->spec.caps |= CARD_BACKUP_CAPS_ERASE_PAGE;
-					p->spec.caps |= CARD_BACKUP_CAPS_ERASE_CHIP;
-					p->spec.caps |= CARD_BACKUP_CAPS_WRITE_STATUS;
-					break;
-				case 0x400000:
-					p->spec.erase_sector = 600;
-					p->spec.erase_sector_total = 3000;
-					p->spec.erase_subsector = 70;
-					p->spec.erase_subsector_total = 150;
-					p->spec.erase_chip = 23000;
-					p->spec.erase_chip_total = 800000;
-					p->spec.initial_status = 0x00;
-					p->spec.subsect_size = 0x1000;
-					p->spec.caps |= CARD_BACKUP_CAPS_ERASE_SUBSECTOR;
-					p->spec.caps |= CARD_BACKUP_CAPS_ERASE_CHIP;
-					p->spec.caps |= CARD_BACKUP_CAPS_WRITE_STATUS;
-					break;
-				case 0x800000:
-					if (vender == 0) {
-						p->spec.erase_sector = 1000;
-						p->spec.erase_sector_total = 3000;
-						p->spec.erase_chip = 68000;
-						p->spec.erase_chip_total = 160000;
-						p->spec.initial_status = 0x00;
-						p->spec.caps |= CARD_BACKUP_CAPS_ERASE_CHIP;
-						p->spec.caps |= CARD_BACKUP_CAPS_WRITE_STATUS;
-					} else if (vender == 1)   {
-						p->spec.erase_sector = 1000;
-						p->spec.erase_sector_total = 3000;
-						p->spec.erase_chip = 68000;
-						p->spec.erase_chip_total = 160000;
-						p->spec.initial_status = 0x84;
-						p->spec.caps |= CARD_BACKUP_CAPS_ERASE_CHIP;
-						p->spec.caps |= CARD_BACKUP_CAPS_WRITE_STATUS;
-					}
-					break;
-				}
-				p->spec.sect_size = 0x010000;
-				p->spec.page_size = 0x0100;
-				p->spec.addr_width = 3;
-				p->spec.program_page = 5;
-				p->spec.caps |= CARD_BACKUP_CAPS_READ;
-				p->spec.caps |= CARD_BACKUP_CAPS_PROGRAM;
-				p->spec.caps |= CARD_BACKUP_CAPS_VERIFY;
-				p->spec.caps |= CARD_BACKUP_CAPS_ERASE_SECTOR;
-			} else if (device == CARD_BACKUP_TYPE_DEVICE_FRAM) {
-				switch (size) {
-				default:
-					goto invalid_type;
-				case 0x002000:
-				case 0x008000:
-					break;
-				}
-				p->spec.page_size = size;
-				p->spec.sect_size = size;
-				p->spec.addr_width = 2;
-				p->spec.initial_status = 0x00;
-				p->spec.caps |= CARD_BACKUP_CAPS_READ;
-				p->spec.caps |= CARD_BACKUP_CAPS_PROGRAM;
-				p->spec.caps |= CARD_BACKUP_CAPS_VERIFY;
-				p->spec.caps |= CARD_BACKUP_CAPS_WRITE_STATUS;
-			} else {
-invalid_type:
-				p->type = CARD_BACKUP_TYPE_NOT_USE;
-				p->spec.total_size = 0;
-				cardi_common.cmd->result = CARD_RESULT_UNSUPPORTED;
-				return;
-			}
-		}
-	}
+            #endif
+                }
+                p->spec.sect_size = p->spec.page_size;
+                p->spec.caps |= CARD_BACKUP_CAPS_READ;
+                p->spec.caps |= CARD_BACKUP_CAPS_PROGRAM;
+                p->spec.caps |= CARD_BACKUP_CAPS_VERIFY;
+                p->spec.caps |= CARD_BACKUP_CAPS_WRITE_STATUS;
+            }
+            else if (device == CARD_BACKUP_TYPE_DEVICE_FLASH)
+            {
+                switch (size)
+                {
+                default:
+                    goto invalid_type;
+                case 0x040000:
+                case 0x080000:
+                case 0x100000:
+                    p->spec.write_page = 25;
+                    p->spec.write_page_total = 300;
+                    p->spec.erase_page = 300;
+                    p->spec.erase_sector = 5000;
+                    p->spec.caps |= CARD_BACKUP_CAPS_WRITE;
+                    p->spec.caps |= CARD_BACKUP_CAPS_ERASE_PAGE;
+                    break;
+                case 0x200000:
+                    p->spec.write_page = 23;
+                    p->spec.write_page_total = 300;
+                    p->spec.erase_sector = 500;
+                    p->spec.erase_sector_total = 5000;
+                    p->spec.erase_chip = 10000;
+                    p->spec.erase_chip_total = 60000;
+                    p->spec.initial_status = 0x00;
+                    p->spec.caps |= CARD_BACKUP_CAPS_WRITE;
+                    p->spec.caps |= CARD_BACKUP_CAPS_ERASE_PAGE;
+                    p->spec.caps |= CARD_BACKUP_CAPS_ERASE_CHIP;
+                    p->spec.caps |= CARD_BACKUP_CAPS_WRITE_STATUS;
+                    break;
+                case 0x400000:
+                    p->spec.erase_sector = 600;
+                    p->spec.erase_sector_total = 3000;
+                    p->spec.erase_subsector = 70;
+                    p->spec.erase_subsector_total = 150;
+                    p->spec.erase_chip = 23000;
+                    p->spec.erase_chip_total = 800000;
+                    p->spec.initial_status = 0x00;
+                    p->spec.subsect_size = 0x1000;
+                    p->spec.caps |= CARD_BACKUP_CAPS_ERASE_SUBSECTOR;
+                    p->spec.caps |= CARD_BACKUP_CAPS_ERASE_CHIP;
+                    p->spec.caps |= CARD_BACKUP_CAPS_WRITE_STATUS;
+                    break;
+                case 0x800000:
+                    if (vender == 0)
+                    {
+                        p->spec.erase_sector = 1000;
+                        p->spec.erase_sector_total = 3000;
+                        p->spec.erase_chip = 68000;
+                        p->spec.erase_chip_total = 160000;
+                        p->spec.initial_status = 0x00;
+                        p->spec.caps |= CARD_BACKUP_CAPS_ERASE_CHIP;
+                        p->spec.caps |= CARD_BACKUP_CAPS_WRITE_STATUS;
+                    }
+                    else if (vender == 1)
+                    {
+                        p->spec.erase_sector = 1000;
+                        p->spec.erase_sector_total = 3000;
+                        p->spec.erase_chip = 68000;
+                        p->spec.erase_chip_total = 160000;
+                        p->spec.initial_status = 0x84;
+                        p->spec.caps |= CARD_BACKUP_CAPS_ERASE_CHIP;
+                        p->spec.caps |= CARD_BACKUP_CAPS_WRITE_STATUS;
+                    }
+                    break;
+                }
+                p->spec.sect_size = 0x010000;
+                p->spec.page_size = 0x0100;
+                p->spec.addr_width = 3;
+                p->spec.program_page = 5;
+                p->spec.caps |= CARD_BACKUP_CAPS_READ;
+                p->spec.caps |= CARD_BACKUP_CAPS_PROGRAM;
+                p->spec.caps |= CARD_BACKUP_CAPS_VERIFY;
+                p->spec.caps |= CARD_BACKUP_CAPS_ERASE_SECTOR;
+            }
+            else if (device == CARD_BACKUP_TYPE_DEVICE_FRAM)
+            {
+                switch (size)
+                {
+                default:
+                    goto invalid_type;
+                case 0x002000:
+                case 0x008000:
+                    break;
+                }
+                p->spec.page_size = size;
+                p->spec.sect_size = size;
+                p->spec.addr_width = 2;
+                p->spec.initial_status = 0x00;
+                p->spec.caps |= CARD_BACKUP_CAPS_READ;
+                p->spec.caps |= CARD_BACKUP_CAPS_PROGRAM;
+                p->spec.caps |= CARD_BACKUP_CAPS_VERIFY;
+                p->spec.caps |= CARD_BACKUP_CAPS_WRITE_STATUS;
+            }
+            else
+            {
+              invalid_type:
+                p->type = CARD_BACKUP_TYPE_NOT_USE;
+                p->spec.total_size = 0;
+                cardi_common.cmd->result = CARD_RESULT_UNSUPPORTED;
+                return;
+            }
+        }
+    }
 }
 
 void CARDi_ReadBackupCore (u32 src, void *dst, u32 len)

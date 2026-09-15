@@ -119,7 +119,11 @@ static void OSi_SendToPxi (u16 data)
         MI_StopDma(3);
 
         (void)OS_SetIrqMask(OS_IE_FIFO_RECV);
-        (void)OS_ResetRequestIrqMask(0xffffffff);
+    #ifdef SDK_PATCH3
+        (void)OS_ResetRequestIrqMask(~OS_IE_FIFO_RECV);
+    #else
+        (void)OS_ResetRequestIrqMask(0xFFFFFFFF);
+    #endif
 
         *(u32 *)HW_RESET_PARAMETER_BUF = parameter;
 

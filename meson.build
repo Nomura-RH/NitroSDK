@@ -50,6 +50,14 @@ if get_option('sp1p3_conditionals')
     c_args += '-DSP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS'
 endif
 
+if get_option('patch3')
+    c_args += '-DSDK_PATCH3'
+endif
+
+if get_option('irc_support')
+    c_args += '-DIRC_SUPPORT'
+endif
+
 add_project_arguments(c_args,
     language: 'c',
     native: false
@@ -76,6 +84,20 @@ nitrosdk_arm7_args = [
     '-sym', 'on',
     '-fp', 'soft',
 ]
+
+mwrap_arm7 = get_option('mwrap_arm7')
+if mwrap_arm7 != 'default'
+    nitrosdk_arm7_args += ['-wrap:sdk', mwrap_arm7]
+    nitrosdk_arm7_args += ['-USP1P3_BUG_FOR_CONDITIONAL_ASM_INSTRUCTIONS']
+endif
+
+if get_option('patch3')
+    nitrosdk_arm7_args += '-DSDK_PATCH3'
+endif
+
+if get_option('irc_support')
+    nitrosdk_arm7_args += '-DIRC_SUPPORT'
+endif
 
 nitrosdk_arm7_args_dep = declare_dependency(
   compile_args: nitrosdk_arm7_args

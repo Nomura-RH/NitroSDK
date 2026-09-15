@@ -5,7 +5,11 @@
 #define SDK_VERSION_TIME        1051
 #define SDK_VERSION_MAJOR       4
 #define SDK_VERSION_MINOR       2
+#ifdef SDK_PATCH3
+#define SDK_VERSION_RELSTEP     30003
+#else
 #define SDK_VERSION_RELSTEP     30001
+#endif
 #define SDK_BUILDVER_CW_CC      3.0
 #define SDK_BUILDVER_CW_LD      2.0
 #define SDK_BUILDNUM_CW_CC      127
